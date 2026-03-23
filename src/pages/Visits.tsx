@@ -5,10 +5,10 @@ import {
   CheckCircle2,
   ChevronRight,
   Save,
-  Map as MapIcon,
   MessageCircle,
+  AlertTriangle,
 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,10 +47,10 @@ export default function Visits() {
   const [step, setStep] = useState(1)
 
   const [formData, setFormData] = useState({
-    company: 'Indústria Química ABC',
+    company: 'Indústria Nova',
     contact: '',
     phone: '',
-    address: 'Av. das Indústrias, 1000',
+    address: 'Av. Principal, 100',
     region: 'Sul',
     reason: 'prospeccao',
     interest: 'medio',
@@ -66,13 +66,9 @@ export default function Visits() {
 
   const handleCheckIn = () => {
     setIsCheckingIn(true)
-
-    // Simulate getting GPS coords
     setTimeout(() => {
       const mockLat = 40 + Math.random() * 20
       const mockLng = 50 + Math.random() * 20
-
-      // Check Geofencing against Priority Zones
       let priorityHit = false
       let matchedZoneName = ''
 
@@ -115,31 +111,38 @@ export default function Visits() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const isOnline = navigator.onLine
     const productsObj = Object.fromEntries(
       Object.entries(productStates)
         .filter(([_, state]) => state.active)
         .map(([k, state]) => [k, state.qty]),
     )
 
-    addVisit({
+    const isSpecialVisit =
+      formData.isPriority || formData.reason === 'fechamento' || formData.interest === 'alto'
+    const initialApprovalStatus = isSpecialVisit ? 'pending' : 'approved'
+
+    await addVisit({
       id: Math.random().toString(36).substring(2, 9),
       salesmanId: user?.id || 'unknown',
-      salesmanName: user?.name || 'Vendedor Desconhecido',
+      salesmanName: user?.name || 'Vendedor',
       ...formData,
       products: productsObj,
       timestamp: new Date().toISOString(),
-      status: isOnline ? 'synced' : 'pending',
+      status: 'synced',
       priority: formData.isPriority,
-      approvalStatus: 'pending', // New workflow default
+      approvalStatus: initialApprovalStatus,
     })
 
-    toast.success('Visita registrada com sucesso!', {
-      description: 'Enviada para revisão do gerente.',
-    })
+    if (isSpecialVisit) {
+      toast.success('Visita registrada!', {
+        description: 'Enviada para revisão da gerência devido ao perfil da visita.',
+      })
+    } else {
+      toast.success('Visita concluída com sucesso!')
+    }
 
     setTimeout(() => {
       setHasCheckedIn(false)
@@ -153,7 +156,7 @@ export default function Visits() {
 
   if (!hasCheckedIn) {
     return (
-      <div className="p-4 md:p-6 max-w-lg mx-auto flex flex-col h-full justify-center space-y-6 animate-fade-in">
+      <div className="p-4 md:p-6 max-w-lg mx-auto flex flex-col h-[calc(100vh-100px)] justify-center space-y-6 animate-fade-in">
         <div className="text-center space-y-2">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <MapPin className="w-8 h-8 text-primary" />
@@ -171,7 +174,7 @@ export default function Visits() {
           </div>
           <CardContent className="pt-6">
             <Button
-              className="w-full h-14 text-lg font-bold shadow-lg bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-transform active:scale-95"
+              className="w-full h-14 text-lg font-bold shadow-lg"
               onClick={handleCheckIn}
               disabled={isCheckingIn}
             >
@@ -190,7 +193,7 @@ export default function Visits() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto animate-slide-in-right">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto animate-slide-in-right pb-24">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-primary flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5 text-success" />
@@ -221,15 +224,14 @@ export default function Visits() {
             <h2 className="text-lg font-semibold border-b pb-2">Identificação</h2>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="company">Empresa / Razão Social</Label>
+                <Label>Empresa / Razão Social</Label>
                 <Input
-                  id="company"
                   value={formData.company}
                   onChange={(e) => setFormData((p) => ({ ...p, company: e.target.value }))}
                   className="h-12"
+                  required
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Endereço</Label>
@@ -237,6 +239,7 @@ export default function Visits() {
                     value={formData.address}
                     onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
                     className="h-12"
+                    required
                   />
                 </div>
                 <div className="space-y-2">
@@ -257,11 +260,9 @@ export default function Visits() {
                   </Select>
                 </div>
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="contact">Nome do Contato</Label>
+                <Label>Nome do Contato</Label>
                 <Input
-                  id="contact"
                   placeholder="Com quem você falou?"
                   className="h-12"
                   value={formData.contact}
@@ -269,17 +270,16 @@ export default function Visits() {
                   required
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="phone">Telefone (WhatsApp)</Label>
+                <Label>Telefone (WhatsApp)</Label>
                 <div className="flex gap-2">
                   <Input
-                    id="phone"
                     placeholder="Ex: 11999999999"
                     type="tel"
                     className="h-12 flex-1"
                     value={formData.phone}
                     onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                    required
                   />
                   <Button
                     type="button"
@@ -340,15 +340,15 @@ export default function Visits() {
         {step === 3 && (
           <div className="space-y-4 animate-fade-in">
             <div className="flex justify-between items-center border-b pb-2">
-              <h2 className="text-lg font-semibold">Produtos</h2>
+              <h2 className="text-lg font-semibold">Produtos de Interesse</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pb-4 pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pb-4 pr-1">
               {CORE_PRODUCTS.map((prod) => {
                 const state = productStates[prod]
                 return (
                   <Card
                     key={prod}
-                    className={`border-2 transition-colors ${state.active ? 'border-primary bg-primary/5' : 'border-transparent'}`}
+                    className={`border transition-colors ${state.active ? 'border-primary bg-primary/5' : 'border-border'}`}
                   >
                     <CardContent className="p-4 flex flex-col gap-3">
                       <div className="flex justify-between items-start gap-2">
@@ -360,7 +360,7 @@ export default function Visits() {
                       </div>
                       {state.active && (
                         <div className="flex items-center gap-3 pt-2 mt-auto border-t border-primary/10">
-                          <span className="text-xs text-muted-foreground mr-auto">Vol. (T)</span>
+                          <span className="text-xs text-muted-foreground mr-auto">Vol. (Ton)</span>
                           <Button
                             type="button"
                             variant="outline"
@@ -396,18 +396,22 @@ export default function Visits() {
             <div className="space-y-2">
               <Label>Anotações (Opcional)</Label>
               <Textarea
-                placeholder="Descreva pontos importantes..."
+                placeholder="Descreva pontos importantes, acordos, pendências..."
                 className="min-h-[150px] resize-none"
                 value={formData.notes}
                 onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
               />
             </div>
-            <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800 dark:text-blue-200 font-medium flex items-center gap-2">
-                <CheckSquare className="w-4 h-4" />
-                Sua visita será enviada para aprovação do gerente.
-              </p>
-            </div>
+            {(formData.isPriority ||
+              formData.reason === 'fechamento' ||
+              formData.interest === 'alto') && (
+              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                <p className="text-sm text-yellow-800 font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Visita Especial: O relatório será enviado para aprovação da gerência.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

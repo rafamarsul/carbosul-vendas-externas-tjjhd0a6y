@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import { useAuth } from './AuthContext'
 
 export interface Visit {
   id: string
@@ -33,106 +35,167 @@ export interface PriorityZone {
 interface DataContextType {
   visits: Visit[]
   zones: PriorityZone[]
-  addVisit: (visit: Visit) => void
+  addVisit: (visit: Visit) => Promise<void>
   syncVisits: () => void
-  updateApproval: (id: string, status: 'approved' | 'needs_review', comment?: string) => void
-  addZone: (zone: PriorityZone) => void
-  deleteZone: (id: string) => void
+  updateApproval: (
+    id: string,
+    status: 'approved' | 'needs_review',
+    comment?: string,
+  ) => Promise<void>
+  addZone: (zone: PriorityZone) => Promise<void>
+  deleteZone: (id: string) => Promise<void>
+  loading: boolean
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
 
-const MOCK_ZONES: PriorityZone[] = [
-  { id: 'z1', name: 'Centro Histórico (Risco)', lat: 45, lng: 55, radius: 8 },
-  { id: 'z2', name: 'Distrito Industrial Sul', lat: 75, lng: 30, radius: 12 },
-]
-
-const generateMockVisits = (): Visit[] => {
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-
-  return [
-    {
-      id: 'v1',
-      salesmanId: 's1',
-      salesmanName: 'Pedro Vendedor',
-      company: 'Agro Sul LTDA',
-      contact: 'Carlos',
-      phone: '11999998888',
-      address: 'Rodovia BR-116, Km 45',
-      region: 'Sul',
-      reason: 'prospeccao',
-      interest: 'alto',
-      products: { 'Carvão Ativado Granulado': 2, 'Resina Aniônica Forte': 1 },
-      notes: 'Cliente muito interessado para a próxima safra.',
-      timestamp: today.toISOString(),
-      status: 'synced',
-      priority: true,
-      approvalStatus: 'pending',
-      lat: 76,
-      lng: 31,
-    },
-    {
-      id: 'v2',
-      salesmanId: 's2',
-      salesmanName: 'Maria Vendedora',
-      company: 'Química Norte',
-      contact: 'Ana',
-      phone: '11977776666',
-      address: 'Av. das Indústrias, 100',
-      region: 'Norte',
-      reason: 'fechamento',
-      interest: 'alto',
-      products: { 'Areia Filtrante': 5 },
-      notes: 'Fechamos pedido de 5 ton.',
-      timestamp: yesterday.toISOString(),
-      status: 'synced',
-      priority: false,
-      approvalStatus: 'approved',
-      lat: 20,
-      lng: 80,
-    },
-  ]
-}
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [visits, setVisits] = useState<Visit[]>(() => {
-    const saved = localStorage.getItem('carbosul-visits')
-    return saved ? JSON.parse(saved) : generateMockVisits()
-  })
-
-  const [zones, setZones] = useState<PriorityZone[]>(() => {
-    const saved = localStorage.getItem('carbosul-zones')
-    return saved ? JSON.parse(saved) : MOCK_ZONES
-  })
+  const { user } = useAuth()
+  const [visits, setVisits] = useState<Visit[]>([])
+  const [zones, setZones] = useState<PriorityZone[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    localStorage.setItem('carbosul-visits', JSON.stringify(visits))
-  }, [visits])
+    if (!user) {
+      setVisits([])
+      setZones([])
+      setLoading(false)
+      return
+    }
 
-  useEffect(() => {
-    localStorage.setItem('carbosul-zones', JSON.stringify(zones))
-  }, [zones])
+    const fetchData = async () => {
+      setLoading(true)
 
-  const addVisit = (visit: Visit) => setVisits((prev) => [visit, ...prev])
-  const syncVisits = () =>
-    setVisits((prev) => prev.map((v) => (v.status === 'pending' ? { ...v, status: 'synced' } : v)))
+      const { data: zonesData } = await supabase.from('zones').select('*')
+      if (zonesData) {
+        setZones(
+          zonesData.map((z) => ({
+            id: z.id,
+            name: z.name,
+            lat: z.lat,
+            lng: z.lng,
+            radius: z.radius,
+          })),
+        )
+      }
 
-  const updateApproval = (id: string, status: 'approved' | 'needs_review', comment?: string) => {
+      const { data: visitsData } = await supabase
+        .from('visits')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (visitsData) {
+        setVisits(
+          visitsData.map((v) => ({
+            id: v.id,
+            salesmanId: v.user_id,
+            salesmanName: v.salesman_name,
+            company: v.company,
+            contact: v.contact,
+            phone: v.phone,
+            address: v.address,
+            region: v.region,
+            reason: v.reason,
+            interest: v.interest,
+            products: v.products as Record<string, number>,
+            notes: v.notes,
+            timestamp: v.created_at,
+            status: v.status as 'synced' | 'pending',
+            priority: v.priority,
+            approvalStatus: v.approval_status as 'pending' | 'approved' | 'needs_review',
+            managerComment: v.manager_comment,
+            lat: v.lat,
+            lng: v.lng,
+          })),
+        )
+      }
+      setLoading(false)
+    }
+
+    fetchData()
+
+    const visitsSub = supabase
+      .channel('visits-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'visits' }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    const zonesSub = supabase
+      .channel('zones-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'zones' }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    return () => {
+      visitsSub.unsubscribe()
+      zonesSub.unsubscribe()
+    }
+  }, [user])
+
+  const addVisit = async (visit: Visit) => {
+    setVisits((prev) => [visit, ...prev])
+    await supabase.from('visits').insert({
+      user_id: user?.id,
+      salesman_name: visit.salesmanName,
+      company: visit.company,
+      contact: visit.contact,
+      phone: visit.phone,
+      address: visit.address,
+      region: visit.region,
+      reason: visit.reason,
+      interest: visit.interest,
+      products: visit.products,
+      notes: visit.notes,
+      status: 'synced',
+      priority: visit.priority,
+      approval_status: visit.approvalStatus,
+      lat: visit.lat,
+      lng: visit.lng,
+    })
+  }
+
+  const syncVisits = () => {}
+
+  const updateApproval = async (
+    id: string,
+    status: 'approved' | 'needs_review',
+    comment?: string,
+  ) => {
     setVisits((prev) =>
       prev.map((v) =>
         v.id === id ? { ...v, approvalStatus: status, managerComment: comment } : v,
       ),
     )
+    await supabase
+      .from('visits')
+      .update({
+        approval_status: status,
+        manager_comment: comment,
+      })
+      .eq('id', id)
   }
 
-  const addZone = (zone: PriorityZone) => setZones((prev) => [...prev, zone])
-  const deleteZone = (id: string) => setZones((prev) => prev.filter((z) => z.id !== id))
+  const addZone = async (zone: PriorityZone) => {
+    setZones((prev) => [...prev, zone])
+    await supabase.from('zones').insert({
+      name: zone.name,
+      lat: zone.lat,
+      lng: zone.lng,
+      radius: zone.radius,
+    })
+  }
+
+  const deleteZone = async (id: string) => {
+    setZones((prev) => prev.filter((z) => z.id !== id))
+    await supabase.from('zones').delete().eq('id', id)
+  }
 
   return React.createElement(
     DataContext.Provider,
-    { value: { visits, zones, addVisit, syncVisits, updateApproval, addZone, deleteZone } },
+    {
+      value: { visits, zones, addVisit, syncVisits, updateApproval, addZone, deleteZone, loading },
+    },
     children,
   )
 }

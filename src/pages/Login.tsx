@@ -1,53 +1,80 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
-import { Building2, UserRound, MapPin } from 'lucide-react'
+import { MapPin } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function Login() {
-  const { login } = useAuth()
-  const nav = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const { signIn } = useAuth()
+  const navigate = useNavigate()
 
-  const handleLogin = (role: 'manager' | 'sales') => {
-    if (role === 'manager') {
-      login({ id: 'm1', name: 'João Diretor', role: 'manager' })
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    const { error } = await signIn(email, password)
+    setIsLoading(false)
+    if (error) {
+      toast.error('Erro ao fazer login', { description: 'Verifique suas credenciais' })
     } else {
-      login({ id: 's1', name: 'Pedro Vendedor', role: 'sales' })
+      toast.success('Bem-vindo ao Carbosul Vendas Externas')
+      navigate('/')
     }
-    nav('/')
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-success/10 rounded-full blur-3xl pointer-events-none" />
-
-      <Card className="w-full max-w-md relative z-10 border-primary/20 shadow-2xl">
-        <CardHeader className="text-center pb-8 pt-10">
-          <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6 relative">
-            <div className="absolute inset-0 bg-primary rounded-2xl rotate-6 opacity-20 transition-transform hover:rotate-12" />
-            <MapPin className="w-10 h-10 text-primary relative z-10" />
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+      <Card className="w-full max-w-md shadow-lg border-primary/10">
+        <CardHeader className="text-center space-y-4 pb-8">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <MapPin className="w-8 h-8 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-bold tracking-tight text-primary">
-            Carbosul CRM
-          </CardTitle>
-          <CardDescription className="text-base mt-2">Gestão de Vendas Externas</CardDescription>
+          <div>
+            <CardTitle className="text-2xl font-bold text-primary">Carbosul Vendas</CardTitle>
+            <CardDescription className="text-base mt-2">
+              Acesse o sistema de gestão de vendas externas
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4 pb-10">
-          <Button
-            className="w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-            onClick={() => handleLogin('manager')}
-          >
-            <Building2 className="mr-2 h-5 w-5" /> Entrar como Gerente
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full h-14 text-lg font-semibold border-2 hover:bg-muted/50 transition-all"
-            onClick={() => handleLogin('sales')}
-          >
-            <UserRound className="mr-2 h-5 w-5" /> Entrar como Vendedor
-          </Button>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="email"
+                placeholder="E-mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="Senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-12"
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-12 text-lg font-semibold"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Entrando...' : 'Entrar'}
+            </Button>
+          </form>
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            <p>Acesso Gestor: rafamarsul@gmail.com</p>
+            <p>Senha: securepassword123</p>
+          </div>
         </CardContent>
       </Card>
     </div>
