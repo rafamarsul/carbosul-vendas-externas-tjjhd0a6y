@@ -9,6 +9,9 @@ import Login from './pages/Login'
 import Index from './pages/Index'
 import Team from './pages/Team'
 import Visits from './pages/Visits'
+import History from './pages/History'
+import Reviews from './pages/Reviews'
+import Zones from './pages/Zones'
 import MapPage from './pages/MapPage'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
@@ -27,6 +30,9 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/equipe" element={<Team />} />
                 <Route path="/visitas" element={<Visits />} />
+                <Route path="/historico" element={<History />} />
+                <Route path="/revisoes" element={<Reviews />} />
+                <Route path="/zonas" element={<Zones />} />
                 <Route path="/mapa" element={<MapPage />} />
               </Route>
             </Route>

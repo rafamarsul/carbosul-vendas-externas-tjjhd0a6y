@@ -9,71 +9,82 @@ interface Marker {
   label?: string
 }
 
+interface Zone {
+  id: string
+  lat: number
+  lng: number
+  radius: number
+  name?: string
+}
+
 interface MapMockProps {
   className?: string
   markers?: Marker[]
+  zones?: Zone[]
   showPolygon?: boolean
   route?: { start: { lat: number; lng: number }; end: { lat: number; lng: number } }
+  onClick?: (lat: number, lng: number) => void
 }
 
-export function MapMock({ className, markers = [], showPolygon = false, route }: MapMockProps) {
+export function MapMock({
+  className,
+  markers = [],
+  zones = [],
+  showPolygon = false,
+  route,
+  onClick,
+}: MapMockProps) {
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onClick) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const lng = (x / rect.width) * 100
+    const lat = (y / rect.height) * 100
+    onClick(lat, lng)
+  }
+
   return (
     <div
       className={cn(
         'relative bg-[#e5e7eb] overflow-hidden flex items-center justify-center w-full h-full',
         className,
+        onClick && 'cursor-crosshair',
       )}
+      onClick={handleClick}
     >
       {/* Map Tile Pattern Simulation */}
       <div
-        className="absolute inset-0 opacity-20"
+        className="absolute inset-0 opacity-20 pointer-events-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M54.627 0l.83.83v58.34h-58.34l-.83-.83V0h58.34zM29.5 29.5v-29h-29v29h29zm29 0v-29h-29v29h29zm-29 29v-29h-29v29h29zm29 0v-29h-29v29h29z' fill='%20000000' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E")`,
         }}
       />
 
-      {/* Mock Streets */}
-      <div className="absolute top-1/4 left-0 w-full h-2 bg-white/40 transform -rotate-12" />
-      <div className="absolute top-1/2 left-0 w-full h-3 bg-white/50" />
-      <div className="absolute left-1/3 top-0 w-2 h-full bg-white/40 transform rotate-12" />
-      <div className="absolute left-2/3 top-0 w-4 h-full bg-blue-200/30" />
+      <div className="absolute top-1/4 left-0 w-full h-2 bg-white/40 transform -rotate-12 pointer-events-none" />
+      <div className="absolute top-1/2 left-0 w-full h-3 bg-white/50 pointer-events-none" />
+      <div className="absolute left-1/3 top-0 w-2 h-full bg-white/40 transform rotate-12 pointer-events-none" />
+      <div className="absolute left-2/3 top-0 w-4 h-full bg-blue-200/30 pointer-events-none" />
 
-      {/* Mock Polygon for territory */}
-      {showPolygon && (
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          preserveAspectRatio="none"
+      {/* Zones */}
+      {zones.map((z) => (
+        <div
+          key={z.id}
+          className="absolute transform -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-destructive/80 bg-destructive/20 pointer-events-none flex items-center justify-center"
+          style={{
+            top: `${z.lat}%`,
+            left: `${z.lng}%`,
+            width: `${z.radius * 2}%`,
+            height: `${z.radius * 2}%`,
+          }}
         >
-          <polygon
-            points="20%,20% 80%,30% 70%,80% 30%,70%"
-            fill="rgba(0, 74, 153, 0.15)"
-            stroke="rgba(0, 74, 153, 0.5)"
-            stroke-width="2"
-            stroke-dasharray="4 4"
-          />
-        </svg>
-      )}
-
-      {/* Visual Route tracking */}
-      {route && (
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{ zIndex: 5 }}
-          preserveAspectRatio="none"
-        >
-          <line
-            x1={`${route.start.lng}%`}
-            y1={`${route.start.lat}%`}
-            x2={`${route.end.lng}%`}
-            y2={`${route.end.lat}%`}
-            stroke="#10B981"
-            stroke-width="4"
-            stroke-dasharray="8 8"
-            stroke-linecap="round"
-            className="animate-pulse"
-          />
-        </svg>
-      )}
+          {z.name && (
+            <span className="text-[10px] font-bold text-destructive-foreground bg-destructive/80 px-1 rounded absolute -top-4 whitespace-nowrap">
+              {z.name}
+            </span>
+          )}
+        </div>
+      ))}
 
       {/* Markers */}
       {markers.map((marker) => (
@@ -100,7 +111,7 @@ export function MapMock({ className, markers = [], showPolygon = false, route }:
         </div>
       ))}
 
-      <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur text-xs px-2 py-1 rounded text-muted-foreground shadow-sm z-10">
+      <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur text-xs px-2 py-1 rounded text-muted-foreground shadow-sm z-10 pointer-events-none">
         Map Data © Simulado
       </div>
     </div>

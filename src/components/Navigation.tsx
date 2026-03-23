@@ -1,18 +1,36 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, MapPin, Map, LogOut } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Users,
+  MapPin,
+  Map,
+  LogOut,
+  CheckSquare,
+  History,
+  Target,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 
-export const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/equipe', label: 'Equipe', icon: Users },
-  { to: '/visitas', label: 'Visitas', icon: MapPin },
-  { to: '/mapa', label: 'Mapa', icon: Map },
-]
-
 export function DesktopSidebar() {
   const { user, logout } = useAuth()
+
+  const navItems =
+    user?.role === 'manager'
+      ? [
+          { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+          { to: '/equipe', label: 'Equipe', icon: Users },
+          { to: '/revisoes', label: 'Revisões', icon: CheckSquare },
+          { to: '/mapa', label: 'Mapa', icon: Map },
+          { to: '/zonas', label: 'Zonas', icon: Target },
+        ]
+      : [
+          { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+          { to: '/visitas', label: 'Nova Visita', icon: MapPin },
+          { to: '/historico', label: 'Histórico', icon: History },
+          { to: '/mapa', label: 'Mapa', icon: Map },
+        ]
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r bg-card h-screen sticky top-0 z-20">
@@ -23,7 +41,7 @@ export function DesktopSidebar() {
         <span className="font-bold text-lg text-primary tracking-tight">Carbosul CRM</span>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -43,7 +61,7 @@ export function DesktopSidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t space-y-4">
+      <div className="p-4 border-t space-y-4 bg-card">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold uppercase">
             {user?.name.substring(0, 2)}
@@ -68,6 +86,23 @@ export function DesktopSidebar() {
 }
 
 export function MobileBottomNav() {
+  const { user } = useAuth()
+
+  const navItems =
+    user?.role === 'manager'
+      ? [
+          { to: '/', label: 'Dash', icon: LayoutDashboard },
+          { to: '/revisoes', label: 'Revisões', icon: CheckSquare },
+          { to: '/mapa', label: 'Mapa', icon: Map },
+          { to: '/zonas', label: 'Zonas', icon: Target },
+        ]
+      : [
+          { to: '/', label: 'Dash', icon: LayoutDashboard },
+          { to: '/visitas', label: 'Visitar', icon: MapPin },
+          { to: '/historico', label: 'Histórico', icon: History },
+          { to: '/mapa', label: 'Mapa', icon: Map },
+        ]
+
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
       <div className="flex items-center justify-around h-16">
