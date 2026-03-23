@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, MapPin, Map, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, Users, MapPin, Map, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/button'
 
 export const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -10,8 +12,10 @@ export const navItems = [
 ]
 
 export function DesktopSidebar() {
+  const { user, logout } = useAuth()
+
   return (
-    <aside className="hidden md:flex flex-col w-64 border-r bg-card h-screen sticky top-0">
+    <aside className="hidden md:flex flex-col w-64 border-r bg-card h-screen sticky top-0 z-20">
       <div className="p-6 flex items-center gap-3">
         <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
           C
@@ -39,16 +43,25 @@ export function DesktopSidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-            JD
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold uppercase">
+            {user?.name.substring(0, 2)}
           </div>
-          <div>
-            <p className="text-sm font-semibold">João Diretor</p>
-            <p className="text-xs text-muted-foreground">Gerente de Vendas</p>
+          <div className="flex-1 overflow-hidden">
+            <p className="text-sm font-semibold truncate">{user?.name}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {user?.role === 'manager' ? 'Gerente' : 'Vendedor'}
+            </p>
           </div>
         </div>
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={logout}
+        >
+          <LogOut className="mr-2 h-4 w-4" /> Sair
+        </Button>
       </div>
     </aside>
   )
@@ -56,7 +69,7 @@ export function DesktopSidebar() {
 
 export function MobileBottomNav() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 px-2 pb-safe">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
       <div className="flex items-center justify-around h-16">
         {navItems.map((item) => (
           <NavLink
@@ -65,7 +78,7 @@ export function MobileBottomNav() {
             className={({ isActive }) =>
               cn(
                 'flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors active:scale-95',
-                isActive ? 'text-primary' : 'text-muted-foreground',
+                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
               )
             }
           >

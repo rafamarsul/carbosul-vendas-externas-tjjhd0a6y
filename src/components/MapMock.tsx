@@ -9,19 +9,18 @@ interface Marker {
   label?: string
 }
 
-export function MapMock({
-  className,
-  markers = [],
-  showPolygon = false,
-}: {
+interface MapMockProps {
   className?: string
   markers?: Marker[]
   showPolygon?: boolean
-}) {
+  route?: { start: { lat: number; lng: number }; end: { lat: number; lng: number } }
+}
+
+export function MapMock({ className, markers = [], showPolygon = false, route }: MapMockProps) {
   return (
     <div
       className={cn(
-        'relative bg-[#e5e7eb] overflow-hidden flex items-center justify-center',
+        'relative bg-[#e5e7eb] overflow-hidden flex items-center justify-center w-full h-full',
         className,
       )}
     >
@@ -49,8 +48,29 @@ export function MapMock({
             points="20%,20% 80%,30% 70%,80% 30%,70%"
             fill="rgba(0, 74, 153, 0.15)"
             stroke="rgba(0, 74, 153, 0.5)"
-            strokeWidth="2"
-            strokeDasharray="4 4"
+            stroke-width="2"
+            stroke-dasharray="4 4"
+          />
+        </svg>
+      )}
+
+      {/* Visual Route tracking */}
+      {route && (
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ zIndex: 5 }}
+          preserveAspectRatio="none"
+        >
+          <line
+            x1={`${route.start.lng}%`}
+            y1={`${route.start.lat}%`}
+            x2={`${route.end.lng}%`}
+            y2={`${route.end.lat}%`}
+            stroke="#10B981"
+            stroke-width="4"
+            stroke-dasharray="8 8"
+            stroke-linecap="round"
+            className="animate-pulse"
           />
         </svg>
       )}
@@ -59,7 +79,7 @@ export function MapMock({
       {markers.map((marker) => (
         <div
           key={marker.id}
-          className="absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
+          className="absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer z-10"
           style={{ top: `${marker.lat}%`, left: `${marker.lng}%` }}
         >
           <div className="relative">
@@ -68,7 +88,7 @@ export function MapMock({
               style={{ backgroundColor: marker.color }}
             />
             <MapPin
-              className="w-8 h-8 relative z-10"
+              className="w-8 h-8 relative z-10 drop-shadow-md"
               style={{ color: marker.color, fill: 'white' }}
             />
           </div>
@@ -80,7 +100,7 @@ export function MapMock({
         </div>
       ))}
 
-      <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur text-xs px-2 py-1 rounded text-muted-foreground shadow-sm">
+      <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur text-xs px-2 py-1 rounded text-muted-foreground shadow-sm z-10">
         Map Data © Simulado
       </div>
     </div>

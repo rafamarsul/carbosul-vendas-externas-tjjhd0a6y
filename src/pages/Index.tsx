@@ -1,6 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapMock } from '@/components/MapMock'
-import { Activity, Target, Users, DollarSign, MapPin } from 'lucide-react'
+import {
+  Activity,
+  Target,
+  Users,
+  DollarSign,
+  MapPin,
+  Download,
+  FileText,
+  Table as TableIcon,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { toast } from 'sonner'
+import { useData } from '@/contexts/DataContext'
 
 const mockMarkers = [
   { id: '1', lat: 35, lng: 40, color: '#004A99', label: 'João - Ativo' },
@@ -9,32 +27,38 @@ const mockMarkers = [
   { id: '4', lat: 75, lng: 30, color: '#004A99', label: 'Ana - Ativa' },
 ]
 
-const recentActivity = [
+const recentActivityMock = [
   {
-    id: 1,
-    user: 'João Silva',
-    action: 'fez check-in em',
-    target: 'Agropecuária Sul',
-    time: 'Há 5 min',
-  },
-  {
-    id: 2,
+    id: 'm1',
     user: 'Maria Oliveira',
     action: 'finalizou visita em',
     target: 'Fazenda Boa Vista',
-    time: 'Há 12 min',
+    time: '14:20',
   },
-  { id: 3, user: 'Pedro Costa', action: 'iniciou rota', target: 'Região Norte', time: 'Há 45 min' },
-  {
-    id: 4,
-    user: 'Ana Lima',
-    action: 'registrou pedido',
-    target: 'Distribuidora Central',
-    time: 'Há 1 hora',
-  },
+  { id: 'm2', user: 'Pedro Costa', action: 'iniciou rota', target: 'Região Norte', time: '13:45' },
 ]
 
 export default function Index() {
+  const { visits } = useData()
+
+  const handleExport = (type: 'pdf' | 'excel') => {
+    toast.success(`Relatório ${type.toUpperCase()} gerado com sucesso!`, {
+      description: 'O download começará em instantes.',
+    })
+  }
+
+  // Merge real visits with mock activities
+  const displayActivities = [
+    ...visits.map((v, i) => ({
+      id: v.id || `v-${i}`,
+      user: v.salesmanName,
+      action: v.status === 'pending' ? 'salvou offline visita em' : 'registrou visita em',
+      target: v.company,
+      time: new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    })),
+    ...recentActivityMock,
+  ].slice(0, 6)
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -42,6 +66,23 @@ export default function Index() {
           <h1 className="text-2xl font-bold tracking-tight text-primary">Dashboard Gerencial</h1>
           <p className="text-muted-foreground text-sm">Visão geral das operações externas hoje.</p>
         </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="w-full md:w-auto shadow-md hover:shadow-lg transition-shadow">
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Relatório
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => handleExport('pdf')} className="cursor-pointer">
+              <FileText className="mr-2 h-4 w-4 text-destructive" /> PDF Documento
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport('excel')} className="cursor-pointer">
+              <TableIcon className="mr-2 h-4 w-4 text-success" /> Excel (CSV)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* KPIs */}
@@ -50,7 +91,7 @@ export default function Index() {
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Visitas Hoje</p>
-              <h3 className="text-3xl font-bold text-foreground mt-1">124</h3>
+              <h3 className="text-3xl font-bold text-foreground mt-1">{124 + visits.length}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <MapPin className="w-6 h-6" />
@@ -116,7 +157,7 @@ export default function Index() {
           </CardHeader>
           <CardContent className="p-0 overflow-y-auto">
             <div className="divide-y">
-              {recentActivity.map((act) => (
+              {displayActivities.map((act) => (
                 <div key={act.id} className="p-4 hover:bg-muted/50 transition-colors">
                   <div className="flex justify-between items-start mb-1">
                     <span className="font-semibold text-sm">{act.user}</span>
