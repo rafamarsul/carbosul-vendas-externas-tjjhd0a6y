@@ -1,32 +1,41 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, UserPlus, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { useToast } from '@/hooks/use-toast'
 import { getUsers, createUser, deleteUser } from '@/services/users'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { useRealtime } from '@/hooks/use-realtime'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function Team() {
   const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'sales',
-  })
+  const [isOpen, setIsOpen] = useState(false)
+  const [formData, setFormData] = useState({ name: '', email: '', password: '' })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const { toast } = useToast()
 
   const loadUsers = async () => {
     try {
       const data = await getUsers()
       setUsers(data.filter((u: any) => u.role === 'sales'))
     } catch (err) {
-      toast.error('Erro ao carregar equipe')
+      console.error(err)
     }
   }
 
@@ -38,131 +47,121 @@ export default function Team() {
     loadUsers()
   })
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newUser.name || !newUser.email || !newUser.password) {
-      toast.error('Preencha todos os campos.')
-      return
-    }
+    setErrors({})
     try {
-      setLoading(true)
       await createUser({
-        ...newUser,
-        passwordConfirm: newUser.password,
+        ...formData,
+        passwordConfirm: formData.password,
+        role: 'sales',
       })
-      toast.success('Vendedor cadastrado com sucesso!')
-      setNewUser({ name: '', email: '', password: '', role: 'sales' })
+      toast({ title: 'Vendedor cadastrado com sucesso!' })
+      setIsOpen(false)
+      setFormData({ name: '', email: '', password: '' })
     } catch (err) {
-      toast.error(getErrorMessage(err))
-    } finally {
-      setLoading(false)
+      setErrors(extractFieldErrors(err))
+      toast({
+        title: 'Erro ao cadastrar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
     }
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este vendedor?')) return
     try {
-      setIsDeleting(id)
       await deleteUser(id)
-      toast.success('Vendedor removido!')
+      toast({ title: 'Vendedor excluído com sucesso.' })
     } catch (err) {
-      toast.error(getErrorMessage(err))
-    } finally {
-      setIsDeleting(null)
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(err), variant: 'destructive' })
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-primary">Equipe de Vendas</h2>
-          <p className="text-muted-foreground text-sm">Gerencie os vendedores da sua equipe.</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <UserPlus className="w-5 h-5" />
-              Novo Vendedor
-            </CardTitle>
-            <CardDescription>Cadastre um novo membro na equipe de vendas.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAdd} className="space-y-4">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Equipe de Vendas</h2>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" /> Novo Vendedor
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cadastrar Vendedor</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Nome Completo</Label>
+                <Label>Nome</Label>
                 <Input
-                  placeholder="Ex: João Silva"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser((p) => ({ ...p, name: e.target.value }))}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
                 />
+                {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
               </div>
               <div className="space-y-2">
-                <Label>E-mail</Label>
+                <Label>Email</Label>
                 <Input
                   type="email"
-                  placeholder="joao@empresa.com"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
                 />
+                {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Senha</Label>
                 <Input
                   type="password"
-                  placeholder="Mínimo 8 caracteres"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  minLength={8}
                 />
+                {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Cadastrar Vendedor
+              <Button type="submit" className="w-full">
+                Salvar Vendedor
               </Button>
             </form>
-          </CardContent>
-        </Card>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">Vendedores Cadastrados</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y max-h-[500px] overflow-y-auto">
-              {users.length === 0 && (
-                <p className="p-4 text-sm text-muted-foreground text-center">
-                  Nenhum vendedor cadastrado.
-                </p>
-              )}
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{u.name || 'Sem Nome'}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={isDeleting === u.id}
-                    onClick={() => handleDelete(u.id)}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    {isDeleting === u.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
+      <div className="border rounded-md bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead className="w-24 text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell className="font-medium">{user.name || '-'}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </TableCell>
+              </TableRow>
+            ))}
+            {users.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
+                  Nenhum vendedor cadastrado.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

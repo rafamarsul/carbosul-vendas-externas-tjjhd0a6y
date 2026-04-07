@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Plus, Trash2, Search, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Slider } from '@/components/ui/slider'
-import { GoogleMap } from '@/components/GoogleMap'
-import { Trash2, MapPin, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { getZones, createZone, deleteZone } from '@/services/zones'
-import { getUsers } from '@/services/users'
-import { useRealtime } from '@/hooks/use-realtime'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Select,
   SelectContent,
@@ -18,20 +25,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
+import { getZones, createZone, deleteZone } from '@/services/zones'
+import { getUsers } from '@/services/users'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Zones() {
   const [zones, setZones] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-
-  const [newZone, setNewZone] = useState({
+  const [isOpen, setIsOpen] = useState(false)
+  const [isSearchingCep, setIsSearchingCep] = useState(false)
+  const [formData, setFormData] = useState({
     name: '',
-    lat: -23.55052,
-    lng: -46.633309,
-    radius: 1000,
+    cep: '',
+    radius: '',
     user_id: '',
+    lat: 0,
+    lng: 0,
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const { toast } = useToast()
 
   const loadData = async () => {
     try {
@@ -39,7 +53,7 @@ export default function Zones() {
       setZones(zonesData)
       setUsers(usersData.filter((u: any) => u.role === 'sales'))
     } catch (err) {
-      toast.error('Erro ao carregar dados')
+      console.error(err)
     }
   }
 
@@ -47,192 +61,239 @@ export default function Zones() {
     loadData()
   }, [])
 
-  useRealtime('zones', () => {
-    loadData()
-  })
+  useRealtime('zones', loadData)
+  useRealtime('users', loadData)
 
-  const handleMapClick = (lat: number, lng: number) => {
-    setNewZone((prev) => ({ ...prev, lat, lng }))
+  const searchCep = async () => {
+    const cleanCep = formData.cep.replace(/\D/g, '')
+    if (cleanCep.length !== 8) {
+      toast({
+        title: 'CEP inválido',
+        description: 'O CEP deve conter 8 dígitos.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSearchingCep(true)
+    try {
+      const viaCepRes = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+      if (!viaCepRes.ok) throw new Error('Falha na comunicação com o serviço de CEP.')
+      const viaCepData = await viaCepRes.json()
+
+      if (viaCepData.erro) throw new Error('CEP não encontrado.')
+
+      const q = `${viaCepData.logradouro}, ${viaCepData.localidade}, ${viaCepData.uf}, Brazil`
+      const nomRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`,
+      )
+      const nomData = await nomRes.json()
+
+      if (nomData && nomData.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          lat: parseFloat(nomData[0].lat),
+          lng: parseFloat(nomData[0].lon),
+        }))
+        toast({ title: 'Localização encontrada com sucesso!' })
+      } else {
+        const fallbackQ = `${viaCepData.localidade}, ${viaCepData.uf}, Brazil`
+        const fbRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQ)}`,
+        )
+        const fbData = await fbRes.json()
+        if (fbData && fbData.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            lat: parseFloat(fbData[0].lat),
+            lng: parseFloat(fbData[0].lon),
+          }))
+          toast({ title: 'Localização aproximada (cidade) encontrada!' })
+        } else {
+          throw new Error('Não foi possível obter as coordenadas para este CEP.')
+        }
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao buscar CEP', description: err.message, variant: 'destructive' })
+    } finally {
+      setIsSearchingCep(false)
+    }
   }
 
-  const handleAdd = async () => {
-    if (!newZone.name) {
-      toast.error('Informe um nome para a zona.')
-      return
-    }
-    if (!newZone.user_id) {
-      toast.error('Selecione um vendedor responsável.')
-      return
-    }
-    if (newZone.radius <= 0) {
-      toast.error('O raio deve ser um valor positivo.')
-      return
-    }
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '')
+    if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2')
+    setFormData({ ...formData, cep: val })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrors({})
     try {
-      setLoading(true)
-      await createZone(newZone)
-      toast.success('Zona crítica criada com sucesso!')
-      setNewZone({ ...newZone, name: '' })
+      await createZone({
+        ...formData,
+        radius: Number(formData.radius),
+      })
+      toast({ title: 'Zona cadastrada com sucesso!' })
+      setIsOpen(false)
+      setFormData({ name: '', cep: '', radius: '', user_id: '', lat: 0, lng: 0 })
     } catch (err) {
-      toast.error(getErrorMessage(err))
-    } finally {
-      setLoading(false)
+      setErrors(extractFieldErrors(err))
+      toast({
+        title: 'Erro ao cadastrar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
     }
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta zona?')) return
     try {
-      setIsDeleting(id)
       await deleteZone(id)
-      toast.success('Zona removida!')
+      toast({ title: 'Zona excluída com sucesso.' })
     } catch (err) {
-      toast.error(getErrorMessage(err))
-    } finally {
-      setIsDeleting(null)
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(err), variant: 'destructive' })
     }
   }
 
-  const getSellerName = (userId: string) => {
-    const user = users.find((u) => u.id === userId)
-    return user ? user.name || user.email : 'Desconhecido'
-  }
+  const getUserName = (id: string) => users.find((u) => u.id === id)?.name || 'Desconhecido'
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-primary">Zonas de Prioridade</h2>
-          <p className="text-muted-foreground text-sm">
-            Defina áreas geográficas críticas no mapa (Geofencing).
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 flex flex-col h-[500px] md:h-[600px]">
-          <CardHeader className="px-6 py-4 border-b bg-muted/20">
-            <CardTitle className="text-lg flex justify-between items-center">
-              Mapa de Zonas
-              <span className="text-xs font-normal text-muted-foreground hidden md:inline">
-                Clique no mapa para posicionar o centro da nova zona
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex-1 relative z-0">
-            <GoogleMap
-              className="w-full h-full rounded-b-xl"
-              zones={[
-                ...zones,
-                { id: 'preview', ...newZone, name: newZone.name || 'Nova Zona (Preview)' },
-              ]}
-              onClick={handleMapClick}
-            />
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Nova Zona Crítica</CardTitle>
-              <CardDescription>Configure o perímetro da área.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Zonas de Atuação</h2>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" /> Nova Zona
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cadastrar Zona de Atuação</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Nome da Região</Label>
+                <Label>Nome da Zona</Label>
                 <Input
-                  placeholder="Ex: Polo Petroquímico"
-                  value={newZone.name}
-                  onChange={(e) => setNewZone((p) => ({ ...p, name: e.target.value }))}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
                 />
+                {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
               </div>
+
+              <div className="space-y-2">
+                <Label>CEP (Centro da Zona)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.cep}
+                    onChange={handleCepChange}
+                    onBlur={() => {
+                      if (formData.cep.replace(/\D/g, '').length === 8) searchCep()
+                    }}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={searchCep}
+                    disabled={isSearchingCep}
+                  >
+                    <Search className="w-4 h-4" />
+                  </Button>
+                </div>
+                {errors.cep && <p className="text-sm text-red-500">{errors.cep}</p>}
+              </div>
+
+              {formData.lat !== 0 && (
+                <div className="text-sm text-muted-foreground flex items-center gap-1 bg-muted p-2 rounded">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  Latitude: {formData.lat.toFixed(5)} | Longitude: {formData.lng.toFixed(5)}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Raio de Atuação (metros)</Label>
+                <Input
+                  type="number"
+                  value={formData.radius}
+                  onChange={(e) => setFormData({ ...formData, radius: e.target.value })}
+                  required
+                  min={1}
+                />
+                {errors.radius && <p className="text-sm text-red-500">{errors.radius}</p>}
+              </div>
+
               <div className="space-y-2">
                 <Label>Vendedor Responsável</Label>
                 <Select
-                  value={newZone.user_id}
-                  onValueChange={(v) => setNewZone((p) => ({ ...p, user_id: v }))}
+                  value={formData.user_id || undefined}
+                  onValueChange={(val) => setFormData({ ...formData, user_id: val })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um vendedor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name || u.email}
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name || user.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.user_id && <p className="text-sm text-red-500">{errors.user_id}</p>}
               </div>
-              <div className="space-y-2">
-                <Label>Raio de Abrangência (metros)</Label>
-                <div className="flex gap-4 items-center">
-                  <Slider
-                    value={[newZone.radius]}
-                    min={100}
-                    max={10000}
-                    step={100}
-                    onValueChange={(v) => setNewZone((p) => ({ ...p, radius: v[0] }))}
-                    className="flex-1"
-                  />
-                  <span className="w-16 text-right font-mono text-sm">{newZone.radius}m</span>
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground bg-muted p-2 rounded flex items-start gap-2">
-                <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="leading-relaxed">
-                  Posição: Lat {newZone.lat.toFixed(4)}, Lng {newZone.lng.toFixed(4)}
-                  <br />
-                  (Ajuste clicando no mapa)
-                </span>
-              </div>
-              <Button className="w-full" onClick={handleAdd} disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={!formData.lat || !formData.lng || !formData.user_id}
+              >
                 Salvar Zona
               </Button>
-            </CardContent>
-          </Card>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Zonas Ativas</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y max-h-[300px] overflow-y-auto">
-                {zones.length === 0 && (
-                  <p className="p-4 text-sm text-muted-foreground text-center">
-                    Nenhuma zona cadastrada.
-                  </p>
-                )}
-                {zones.map((z) => (
-                  <div
-                    key={z.id}
-                    className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{z.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Raio: {z.radius}m • Vendedor: {getSellerName(z.user_id)}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={isDeleting === z.id}
-                      onClick={() => handleDelete(z.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      {isDeleting === z.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="border rounded-md bg-card overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>CEP</TableHead>
+              <TableHead>Raio (m)</TableHead>
+              <TableHead>Vendedor</TableHead>
+              <TableHead className="w-24 text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {zones.map((zone) => (
+              <TableRow key={zone.id}>
+                <TableCell className="font-medium">{zone.name}</TableCell>
+                <TableCell>{zone.cep || '-'}</TableCell>
+                <TableCell>{zone.radius}</TableCell>
+                <TableCell>{getUserName(zone.user_id)}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(zone.id)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {zones.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground h-24">
+                  Nenhuma zona cadastrada.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )
