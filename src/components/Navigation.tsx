@@ -21,10 +21,9 @@ export function DesktopSidebar() {
     user?.role === 'manager'
       ? [
           { to: '/', label: 'Dashboard Global', icon: LayoutDashboard },
-          { to: '/equipe', label: 'Equipe', icon: Users },
+          { to: '/gerenciamento', label: 'Gerenciamento', icon: Users },
           { to: '/revisoes', label: 'Todas as Visitas', icon: CheckSquare },
           { to: '/mapa', label: 'Mapa', icon: Map },
-          { to: '/zonas', label: 'Gestão de Zonas', icon: Target },
           { to: '/auditoria', label: 'Auditoria', icon: Shield },
         ]
       : [
@@ -95,7 +94,7 @@ export function MobileBottomNav() {
       ? [
           { to: '/', label: 'Dash', icon: LayoutDashboard },
           { to: '/revisoes', label: 'Visitas', icon: CheckSquare },
-          { to: '/zonas', label: 'Zonas', icon: Target },
+          { to: '/gerenciamento', label: 'Gestão', icon: Users },
           { to: '/auditoria', label: 'Audit', icon: Shield },
         ]
       : [

@@ -110,7 +110,7 @@ export function GoogleMap({
         fillOpacity: 0.2,
         map,
         center: { lat: zone.lat, lng: zone.lng },
-        radius: zone.radius * 1000, // km to meters
+        radius: zone.radius, // in meters
       })
     })
 

@@ -13,6 +13,7 @@ import History from './pages/History'
 import Reviews from './pages/Reviews'
 import Reports from './pages/Reports'
 import Zones from './pages/Zones'
+import Management from './pages/Management'
 import MapPage from './pages/MapPage'
 import AuditLogs from './pages/AuditLogs'
 import NotFound from './pages/NotFound'
@@ -34,10 +35,9 @@ const App = () => (
                 <Route path="/mapa" element={<MapPage />} />
 
                 <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
-                  <Route path="/equipe" element={<Team />} />
+                  <Route path="/gerenciamento" element={<Management />} />
                   <Route path="/relatorios" element={<Reports />} />
                   <Route path="/revisoes" element={<Reviews />} />
-                  <Route path="/zonas" element={<Zones />} />
                   <Route path="/auditoria" element={<AuditLogs />} />
                 </Route>
 
