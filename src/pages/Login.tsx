@@ -17,10 +17,23 @@ export default function Login() {
   const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [isRecovery, setIsRecovery] = useState(false)
   const [newPassword, setNewPassword] = useState('')
-  const { signIn, signInWithGoogle, resetPassword, updatePassword } = useAuth()
+  const { signIn, signInWithGoogle, resetPassword, updatePassword, session } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('type=recovery')) {
+      setIsRecovery(true)
+    } else if (hash.includes('error_description')) {
+      const errorMsg = new URLSearchParams(hash.substring(1)).get('error_description')
+      if (errorMsg) {
+        toast.error('Erro na autenticação', {
+          description: decodeURIComponent(errorMsg).replace(/\+/g, ' '),
+        })
+        window.history.replaceState(null, '', window.location.pathname)
+      }
+    }
+
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecovery(true)
@@ -28,6 +41,12 @@ export default function Login() {
     })
     return () => authListener.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (session && !isRecovery && !window.location.hash.includes('type=recovery')) {
+      navigate('/')
+    }
+  }, [session, isRecovery, navigate])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
