@@ -5,6 +5,7 @@ interface GoogleMapProps {
   className?: string
   markers?: Array<{ id: string; lat: number; lng: number; color?: string; label?: string }>
   zones?: Array<{ id: string; lat: number; lng: number; radius: number; name?: string }>
+  route?: Array<{ lat: number; lng: number }>
   showPolygon?: boolean
   onClick?: (lat: number, lng: number) => void
 }
@@ -27,7 +28,10 @@ export function GoogleMap({
   const [map, setMap] = useState<any>(null)
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
   const googleMapsLoaded = useRef(false)
-  const instances = useRef<{ markers: any[]; zones: any[] }>({ markers: [], zones: [] })
+  const instances = useRef<{ markers: any[]; zones: any[]; route?: any }>({
+    markers: [],
+    zones: [],
+  })
 
   useEffect(() => {
     if (!apiKey) return
@@ -77,6 +81,9 @@ export function GoogleMap({
     // Clear old instances
     instances.current.markers.forEach((m) => m.setMap(null))
     instances.current.zones.forEach((z) => z.setMap(null))
+    if (instances.current.route) {
+      instances.current.route.setMap(null)
+    }
 
     const googleMarkers = markers.map((marker) => {
       return new window.google.maps.Marker({
@@ -107,7 +114,19 @@ export function GoogleMap({
       })
     })
 
-    instances.current = { markers: googleMarkers, zones: googleZones }
+    let routeLine = null
+    if (route && route.length > 1) {
+      routeLine = new window.google.maps.Polyline({
+        path: route,
+        geodesic: true,
+        strokeColor: '#004A99',
+        strokeOpacity: 0.8,
+        strokeWeight: 4,
+        map,
+      })
+    }
+
+    instances.current = { markers: googleMarkers, zones: googleZones, route: routeLine }
 
     if (markers.length > 0) {
       const bounds = new window.google.maps.LatLngBounds()

@@ -94,6 +94,18 @@ export default function Visits() {
         const realLat = position.coords.latitude
         const realLng = position.coords.longitude
 
+        // Simulação de endereço esperado do cliente para o Alerta de Desvio
+        const expectedLat = realLat + (Math.random() > 0.7 ? 0.015 : 0.002) // Pode estar até ~1.5km de distância
+        const expectedLng = realLng + (Math.random() > 0.7 ? 0.015 : 0.002)
+        const distanceToClient = calculateRealDistance(realLat, realLng, expectedLat, expectedLng)
+
+        if (distanceToClient > 0.5) {
+          toast('🚨 Alerta de Desvio Geográfico', {
+            description: `Você está a ${distanceToClient.toFixed(1)}km do endereço esperado para este cliente.`,
+            duration: 8000,
+          })
+        }
+
         let priorityHit = false
         let matchedZoneName = ''
 
