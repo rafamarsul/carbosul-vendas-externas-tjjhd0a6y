@@ -7,12 +7,27 @@ import { useAuth } from '@/contexts/AuthContext'
 import { MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const { signIn, signInWithGoogle } = useAuth()
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [isRecovery, setIsRecovery] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const { signIn, signInWithGoogle, resetPassword, updatePassword } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovery(true)
+      }
+    })
+    return () => authListener.subscription.unsubscribe()
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +49,127 @@ export default function Login() {
     if (error) {
       toast.error('Erro no login social', { description: error.message })
     }
+  }
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    const { error } = await resetPassword(email)
+    setIsLoading(false)
+    if (error) {
+      toast.error('Erro ao enviar e-mail', { description: error.message })
+    } else {
+      toast.success('E-mail enviado', {
+        description: 'Verifique sua caixa de entrada para redefinir sua senha.',
+      })
+      setIsForgotPassword(false)
+    }
+  }
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    const { error } = await updatePassword(newPassword)
+    setIsLoading(false)
+    if (error) {
+      toast.error('Erro ao atualizar senha', { description: error.message })
+    } else {
+      toast.success('Senha atualizada com sucesso')
+      setIsRecovery(false)
+      navigate('/')
+    }
+  }
+
+  if (isRecovery) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <Card className="w-full max-w-md shadow-lg border-primary/10">
+          <CardHeader className="text-center space-y-4 pb-8">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <MapPin className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl font-bold text-primary">Nova Senha</CardTitle>
+              <CardDescription className="text-base mt-2">
+                Digite sua nova senha de acesso
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="Nova Senha"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  className="h-12"
+                  minLength={6}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-12 text-lg font-semibold"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Atualizando...' : 'Atualizar Senha'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <Card className="w-full max-w-md shadow-lg border-primary/10">
+          <CardHeader className="text-center space-y-4 pb-8">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <MapPin className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-2xl font-bold text-primary">Recuperar Senha</CardTitle>
+              <CardDescription className="text-base mt-2">
+                Enviaremos um link de recuperação para o seu e-mail
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="E-mail"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-12"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-12 text-lg font-semibold"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Enviando...' : 'Enviar Link'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => setIsForgotPassword(false)}
+                disabled={isLoading}
+              >
+                Voltar ao Login
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -79,6 +215,17 @@ export default function Login() {
             >
               {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="link"
+                className="px-0 text-muted-foreground font-normal"
+                onClick={() => setIsForgotPassword(true)}
+              >
+                Esqueci minha senha
+              </Button>
+            </div>
 
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">

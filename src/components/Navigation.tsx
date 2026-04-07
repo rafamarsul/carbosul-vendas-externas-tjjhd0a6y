@@ -8,6 +8,7 @@ import {
   CheckSquare,
   History,
   Target,
+  Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,6 +25,8 @@ export function DesktopSidebar() {
           { to: '/revisoes', label: 'Revisões', icon: CheckSquare },
           { to: '/mapa', label: 'Mapa', icon: Map },
           { to: '/zonas', label: 'Zonas', icon: Target },
+          { to: '/auditoria', label: 'Auditoria', icon: Shield },
+          { to: '/auditoria', label: 'Auditoria', icon: Shield },
         ]
       : [
           { to: '/', label: 'Dashboard', icon: LayoutDashboard },

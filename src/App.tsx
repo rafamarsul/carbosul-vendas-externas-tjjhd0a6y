@@ -14,6 +14,7 @@ import Reviews from './pages/Reviews'
 import Reports from './pages/Reports'
 import Zones from './pages/Zones'
 import MapPage from './pages/MapPage'
+import AuditLogs from './pages/AuditLogs'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -37,6 +38,7 @@ const App = () => (
                   <Route path="/relatorios" element={<Reports />} />
                   <Route path="/revisoes" element={<Reviews />} />
                   <Route path="/zonas" element={<Zones />} />
+                  <Route path="/auditoria" element={<AuditLogs />} />
                 </Route>
 
                 <Route element={<ProtectedRoute allowedRoles={['sales']} />}>
