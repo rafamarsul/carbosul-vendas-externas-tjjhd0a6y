@@ -29,13 +29,19 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
-                <Route path="/equipe" element={<Team />} />
-                <Route path="/visitas" element={<Visits />} />
                 <Route path="/historico" element={<History />} />
-                <Route path="/relatorios" element={<Reports />} />
-                <Route path="/revisoes" element={<Reviews />} />
-                <Route path="/zonas" element={<Zones />} />
                 <Route path="/mapa" element={<MapPage />} />
+
+                <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
+                  <Route path="/equipe" element={<Team />} />
+                  <Route path="/relatorios" element={<Reports />} />
+                  <Route path="/revisoes" element={<Reviews />} />
+                  <Route path="/zonas" element={<Zones />} />
+                </Route>
+
+                <Route element={<ProtectedRoute allowedRoles={['sales']} />}>
+                  <Route path="/visitas" element={<Visits />} />
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

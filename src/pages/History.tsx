@@ -1,136 +1,166 @@
-import { useData } from '@/contexts/DataContext'
+import { useEffect, useState } from 'react'
+import { MapPin, Clock, CalendarPlus, Download } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MessageCircle, CheckCircle, Clock, MapPin, AlertCircle } from 'lucide-react'
-import { getWhatsAppUrl } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase/client'
+import { generateGoogleCalendarUrl, generateAndDownloadICS } from '@/lib/calendar'
+import { toast } from 'sonner'
+
+interface Visit {
+  id: string
+  company: string
+  contact: string
+  address: string
+  reason: string
+  status: string
+  created_at: string
+}
 
 export default function History() {
-  const { visits, loading } = useData()
+  const { user } = useAuth()
+  const [visits, setVisits] = useState<Visit[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchVisits = async () => {
+      let query = supabase.from('visits').select('*').order('created_at', { ascending: false })
+
+      if (user?.role === 'sales') {
+        query = query.eq('user_id', user.id)
+      }
+
+      const { data, error } = await query
+      if (error) {
+        toast.error('Erro ao buscar histórico')
+      } else if (data) {
+        setVisits(data as Visit[])
+      }
+      setLoading(false)
+    }
+
+    if (user) fetchVisits()
+  }, [user])
+
+  const handleSyncGoogleCalendar = (visit: Visit) => {
+    const startDate = new Date(visit.created_at)
+    // Estimativa de 1 hora de duração para a visita
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
+
+    const url = generateGoogleCalendarUrl({
+      title: `Visita: ${visit.company}`,
+      description: `Contato: ${visit.contact}\nMotivo: ${visit.reason}`,
+      location: visit.address,
+      startDate,
+      endDate,
+    })
+
+    window.open(url, '_blank')
+  }
+
+  const handleBulkICS = () => {
+    if (visits.length === 0) {
+      toast.warning('Nenhuma visita para exportar.')
+      return
+    }
+
+    const events = visits.map((visit) => {
+      const startDate = new Date(visit.created_at)
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
+
+      return {
+        title: `Visita: ${visit.company}`,
+        description: `Contato: ${visit.contact}\nMotivo: ${visit.reason}`,
+        location: visit.address,
+        startDate,
+        endDate,
+      }
+    })
+
+    generateAndDownloadICS(events, 'minhas_visitas_carbosul.ics')
+    toast.success('Agenda exportada com sucesso!')
+  }
 
   if (loading) {
-    return <div className="p-8 text-center text-muted-foreground">Carregando histórico...</div>
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-100px)]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-primary">Histórico de Visitas</h1>
-        <p className="text-muted-foreground text-sm">
-          Registro completo de todas as visitas realizadas.
-        </p>
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6 animate-fade-in-up">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Histórico de Visitas</h1>
+          <p className="text-muted-foreground">Acompanhe e exporte suas visitas registradas.</p>
+        </div>
+
+        <Button
+          onClick={handleBulkICS}
+          variant="secondary"
+          className="w-full md:w-auto flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Exportar Rotas (ICS)
+        </Button>
       </div>
 
       <div className="grid gap-4">
         {visits.map((visit) => (
-          <Card
-            key={visit.id}
-            className={`overflow-hidden transition-all hover:shadow-md ${visit.priority ? 'border-l-4 border-l-destructive' : ''}`}
-          >
-            <CardContent className="p-0">
-              <div className="flex flex-col md:flex-row">
-                <div className="p-5 flex-1 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-bold flex items-center gap-2">
-                        {visit.company}
-                        {visit.priority && <Badge variant="destructive">Prioridade</Badge>}
-                      </h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="w-3 h-3" /> {visit.address} ({visit.region})
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{visit.salesmanName}</p>
-                      <p className="text-xs text-muted-foreground flex items-center justify-end gap-1 mt-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(visit.timestamp).toLocaleDateString()} às{' '}
-                        {new Date(visit.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
+          <Card key={visit.id} className="transition-all hover:shadow-md">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row justify-between gap-4">
+                <div className="space-y-3 flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg text-card-foreground leading-none">
+                      {visit.company}
+                    </h3>
+                    <Badge
+                      variant={visit.status === 'synced' ? 'default' : 'secondary'}
+                      className="capitalize"
+                    >
+                      {visit.status === 'synced' ? 'Concluída' : visit.status}
+                    </Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-muted/30 p-3 rounded-lg">
-                    <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Contato</span>
-                      <p className="font-medium">{visit.contact}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-primary/70" />
+                      {new Date(visit.created_at).toLocaleString()}
                     </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Motivo</span>
-                      <p className="font-medium capitalize">{visit.reason}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Interesse</span>
-                      <p className="font-medium capitalize">{visit.interest}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs block mb-1">
-                        Produtos Identificados
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-primary/70" />
+                      <span className="truncate" title={visit.address}>
+                        {visit.address}
                       </span>
-                      <p className="font-medium">{Object.keys(visit.products).length} item(s)</p>
                     </div>
                   </div>
-
-                  {visit.managerComment && (
-                    <div className="bg-orange-50 border border-orange-100 p-3 rounded-lg text-sm mt-3">
-                      <p className="text-orange-800 font-semibold flex items-center gap-1 mb-1">
-                        <AlertCircle className="w-4 h-4" /> Feedback do Gestor
-                      </p>
-                      <p className="text-orange-700 italic">{visit.managerComment}</p>
-                    </div>
-                  )}
                 </div>
 
-                <div className="bg-muted/20 p-5 md:w-64 border-t md:border-t-0 md:border-l flex flex-col justify-center gap-3">
-                  <div className="text-center mb-2">
-                    <span className="text-xs text-muted-foreground block mb-2">
-                      Status da Visita
-                    </span>
-                    {visit.approvalStatus === 'pending' && (
-                      <Badge
-                        variant="outline"
-                        className="w-full py-1.5 justify-center text-yellow-700 border-yellow-300 bg-yellow-50"
-                      >
-                        Aguardando Gestor
-                      </Badge>
-                    )}
-                    {visit.approvalStatus === 'needs_review' && (
-                      <Badge
-                        variant="outline"
-                        className="w-full py-1.5 justify-center text-orange-700 border-orange-300 bg-orange-50"
-                      >
-                        Revisão Necessária
-                      </Badge>
-                    )}
-                    {visit.approvalStatus === 'approved' && (
-                      <Badge
-                        variant="outline"
-                        className="w-full py-1.5 justify-center text-green-700 border-green-300 bg-green-50"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5 mr-1" /> Concluída e Aprovada
-                      </Badge>
-                    )}
-                  </div>
-
-                  {visit.phone && (
-                    <Button
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => window.open(getWhatsAppUrl(visit.phone), '_blank')}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" /> WhatsApp Contato
-                    </Button>
-                  )}
+                <div className="flex sm:flex-col gap-2 justify-end items-end sm:items-center">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto flex items-center gap-2"
+                    onClick={() => handleSyncGoogleCalendar(visit)}
+                    title="Adicionar visita individual ao Google Agenda"
+                  >
+                    <CalendarPlus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Google Agenda</span>
+                    <span className="sm:hidden">Agenda</span>
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
         {visits.length === 0 && (
-          <div className="text-center p-12 text-muted-foreground">
-            Nenhuma visita registrada no sistema.
+          <div className="text-center p-12 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/20">
+            <CalendarPlus className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <p className="text-lg font-medium">Nenhuma visita registrada</p>
+            <p className="text-sm">Suas visitas aparecerão aqui para sincronização.</p>
           </div>
         )}
       </div>
