@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 
 export interface User {
   id: string
@@ -11,7 +10,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null
-  session: Session | null
+  session: any | null
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signInWithGoogle: () => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
@@ -29,110 +28,101 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<any | null>(
+    pb.authStore.isValid ? pb.authStore.token : null,
+  )
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      setSession(currentSession)
-      if (!currentSession) {
-        setUser(null)
-        setLoading(false)
+    const updateUser = () => {
+      const record = pb.authStore.record
+      if (record) {
+        setUser({
+          id: record.id,
+          email: record.email,
+          name: record.name || 'User',
+          role: record.role || 'sales',
+        })
+        setSession(pb.authStore.token)
       } else {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentSession.user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setUser({
-                id: data.id,
-                email: data.email,
-                name: data.name || 'User',
-                role: data.role as 'manager' | 'sales',
-              })
-            } else {
-              setUser({
-                id: currentSession.user.id,
-                email: currentSession.user.email || '',
-                name: 'User',
-                role: 'sales',
-              })
-            }
-            setLoading(false)
-          })
+        setUser(null)
+        setSession(null)
       }
+    }
+
+    updateUser()
+    setLoading(false)
+
+    const unsubscribe = pb.authStore.onChange(() => {
+      updateUser()
     })
 
-    supabase.auth.getSession().then(({ data: { session: initSession } }) => {
-      setSession(initSession)
-      if (!initSession) {
-        setUser(null)
-        setLoading(false)
-      } else {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', initSession.user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setUser({
-                id: data.id,
-                email: data.email,
-                name: data.name || 'User',
-                role: data.role as 'manager' | 'sales',
-              })
-            } else {
-              setUser({
-                id: initSession.user.id,
-                email: initSession.user.email || '',
-                name: 'User',
-                role: 'sales',
-              })
-            }
-            setLoading(false)
-          })
-      }
-    })
-
-    return () => subscription.unsubscribe()
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
+    try {
+      await pb.collection('users').authWithPassword(email, password)
+
+      if (pb.authStore.record) {
+        try {
+          await pb.collection('audit_logs').create({
+            user: pb.authStore.record.id,
+            action: 'Login Successful',
+          })
+        } catch (e) {
+          console.error('Failed to create audit log', e)
+        }
+      }
+
+      return { error: null }
+    } catch (error) {
+      return { error }
+    }
   }
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
-    })
-    return { error }
+    try {
+      const authData = await pb.collection('users').authWithOAuth2({ provider: 'google' })
+      if (authData.record) {
+        try {
+          await pb.collection('audit_logs').create({
+            user: authData.record.id,
+            action: 'Login Successful',
+          })
+        } catch (e) {
+          console.error('Failed to create audit log', e)
+        }
+      }
+      return { error: null }
+    } catch (error) {
+      return { error }
+    }
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    try {
+      pb.authStore.clear()
+      return { error: null }
+    } catch (error) {
+      return { error }
+    }
   }
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
-    })
-    return { error }
+    try {
+      await pb.collection('users').requestPasswordReset(email)
+      return { error: null }
+    } catch (error) {
+      return { error }
+    }
   }
 
-  const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password })
-    return { error }
+  const updatePassword = async () => {
+    return { error: new Error('Please use the link sent to your email to reset your password.') }
   }
 
   return React.createElement(

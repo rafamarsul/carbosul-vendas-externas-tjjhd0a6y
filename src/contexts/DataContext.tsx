@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { useAuth } from './AuthContext'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export interface Visit {
   id: string
@@ -55,6 +56,60 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [zones, setZones] = useState<PriorityZone[]>([])
   const [loading, setLoading] = useState(true)
 
+  const fetchZones = async () => {
+    try {
+      const records = await pb.collection('zones').getFullList()
+      setZones(
+        records.map((z) => ({
+          id: z.id,
+          name: z.name,
+          lat: z.lat,
+          lng: z.lng,
+          radius: z.radius,
+        })),
+      )
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const fetchVisits = async () => {
+    try {
+      const records = await pb.collection('visits').getFullList({ sort: '-created' })
+      setVisits(
+        records.map((v) => ({
+          id: v.id,
+          salesmanId: v.user_id,
+          salesmanName: v.salesman_name,
+          company: v.company,
+          contact: v.contact,
+          phone: v.phone,
+          address: v.address,
+          region: v.region,
+          reason: v.reason,
+          interest: v.interest,
+          products: v.products as Record<string, number>,
+          notes: v.notes,
+          timestamp: v.created,
+          status: v.status as 'synced' | 'pending',
+          priority: v.priority,
+          approvalStatus: v.approval_status as 'pending' | 'approved' | 'needs_review',
+          managerComment: v.manager_comment,
+          lat: v.lat,
+          lng: v.lng,
+        })),
+      )
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const loadData = async () => {
+    setLoading(true)
+    await Promise.all([fetchZones(), fetchVisits()])
+    setLoading(false)
+  }
+
   useEffect(() => {
     if (!user) {
       setVisits([])
@@ -62,97 +117,48 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
       return
     }
-
-    const fetchData = async () => {
-      setLoading(true)
-
-      const { data: zonesData } = await supabase.from('zones').select('*')
-      if (zonesData) {
-        setZones(
-          zonesData.map((z) => ({
-            id: z.id,
-            name: z.name,
-            lat: z.lat,
-            lng: z.lng,
-            radius: z.radius,
-          })),
-        )
-      }
-
-      const { data: visitsData } = await supabase
-        .from('visits')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (visitsData) {
-        setVisits(
-          visitsData.map((v) => ({
-            id: v.id,
-            salesmanId: v.user_id,
-            salesmanName: v.salesman_name,
-            company: v.company,
-            contact: v.contact,
-            phone: v.phone,
-            address: v.address,
-            region: v.region,
-            reason: v.reason,
-            interest: v.interest,
-            products: v.products as Record<string, number>,
-            notes: v.notes,
-            timestamp: v.created_at,
-            status: v.status as 'synced' | 'pending',
-            priority: v.priority,
-            approvalStatus: v.approval_status as 'pending' | 'approved' | 'needs_review',
-            managerComment: v.manager_comment,
-            lat: v.lat,
-            lng: v.lng,
-          })),
-        )
-      }
-      setLoading(false)
-    }
-
-    fetchData()
-
-    const visitsSub = supabase
-      .channel('visits-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'visits' }, () => {
-        fetchData()
-      })
-      .subscribe()
-
-    const zonesSub = supabase
-      .channel('zones-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'zones' }, () => {
-        fetchData()
-      })
-      .subscribe()
-
-    return () => {
-      visitsSub.unsubscribe()
-      zonesSub.unsubscribe()
-    }
+    loadData()
   }, [user])
+
+  useRealtime(
+    'visits',
+    () => {
+      if (user) fetchVisits()
+    },
+    !!user,
+  )
+  useRealtime(
+    'zones',
+    () => {
+      if (user) fetchZones()
+    },
+    !!user,
+  )
 
   const addVisit = async (visit: Visit) => {
     setVisits((prev) => [visit, ...prev])
-    await supabase.from('visits').insert({
-      user_id: user?.id,
-      salesman_name: visit.salesmanName,
-      company: visit.company,
-      contact: visit.contact,
-      phone: visit.phone,
-      address: visit.address,
-      region: visit.region,
-      reason: visit.reason,
-      interest: visit.interest,
-      products: visit.products,
-      notes: visit.notes,
-      status: 'synced',
-      priority: visit.priority,
-      approval_status: visit.approvalStatus,
-      lat: visit.lat,
-      lng: visit.lng,
-    })
+    try {
+      await pb.collection('visits').create({
+        user_id: user?.id,
+        salesman_name: visit.salesmanName,
+        company: visit.company,
+        contact: visit.contact,
+        phone: visit.phone,
+        address: visit.address,
+        region: visit.region,
+        reason: visit.reason,
+        interest: visit.interest,
+        products: visit.products,
+        notes: visit.notes,
+        status: 'synced',
+        priority: visit.priority,
+        approval_status: visit.approvalStatus,
+        lat: visit.lat,
+        lng: visit.lng,
+      })
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const syncVisits = () => {}
@@ -167,28 +173,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         v.id === id ? { ...v, approvalStatus: status, managerComment: comment } : v,
       ),
     )
-    await supabase
-      .from('visits')
-      .update({
+    try {
+      await pb.collection('visits').update(id, {
         approval_status: status,
         manager_comment: comment,
       })
-      .eq('id', id)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const addZone = async (zone: PriorityZone) => {
     setZones((prev) => [...prev, zone])
-    await supabase.from('zones').insert({
-      name: zone.name,
-      lat: zone.lat,
-      lng: zone.lng,
-      radius: zone.radius,
-    })
+    try {
+      await pb.collection('zones').create({
+        name: zone.name,
+        lat: zone.lat,
+        lng: zone.lng,
+        radius: zone.radius,
+      })
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const deleteZone = async (id: string) => {
     setZones((prev) => prev.filter((z) => z.id !== id))
-    await supabase.from('zones').delete().eq('id', id)
+    try {
+      await pb.collection('zones').delete(id)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   return React.createElement(

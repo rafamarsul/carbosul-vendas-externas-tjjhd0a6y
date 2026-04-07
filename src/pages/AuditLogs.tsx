@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Shield, Clock, User as UserIcon } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
 import {
   Table,
@@ -16,12 +16,14 @@ import { Badge } from '@/components/ui/badge'
 interface AuditLog {
   id: string
   action: string
-  created_at: string
-  profiles: {
-    name: string
-    email: string
-    role: string
-  } | null
+  created: string
+  expand?: {
+    user?: {
+      name: string
+      email: string
+      role: string
+    }
+  }
 }
 
 export default function AuditLogs() {
@@ -30,19 +32,18 @@ export default function AuditLogs() {
 
   useEffect(() => {
     const fetchLogs = async () => {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*, profiles(name, email, role)')
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (error) {
+      try {
+        const records = await pb.collection('audit_logs').getList(1, 100, {
+          sort: '-created',
+          expand: 'user',
+        })
+        setLogs(records.items as unknown as AuditLog[])
+      } catch (error) {
         toast.error('Erro ao buscar logs de auditoria')
         console.error(error)
-      } else {
-        setLogs(data as unknown as AuditLog[])
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     fetchLogs()
@@ -99,26 +100,26 @@ export default function AuditLogs() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                            {log.profiles?.name?.substring(0, 2).toUpperCase() || (
+                            {log.expand?.user?.name?.substring(0, 2).toUpperCase() || (
                               <UserIcon className="w-4 h-4" />
                             )}
                           </div>
                           <div>
                             <p className="font-medium">
-                              {log.profiles?.name || 'Usuário Desconhecido'}
+                              {log.expand?.user?.name || 'Usuário Desconhecido'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {log.profiles?.email || 'N/A'}
+                              {log.expand?.user?.email || 'N/A'}
                             </p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={log.profiles?.role === 'manager' ? 'default' : 'secondary'}
+                          variant={log.expand?.user?.role === 'manager' ? 'default' : 'secondary'}
                           className="capitalize"
                         >
-                          {log.profiles?.role === 'manager' ? 'Gestor' : 'Vendedor'}
+                          {log.expand?.user?.role === 'manager' ? 'Gestor' : 'Vendedor'}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -126,11 +127,11 @@ export default function AuditLogs() {
                           variant="outline"
                           className="bg-green-500/10 text-green-600 border-green-500/20"
                         >
-                          {log.action === 'login' ? 'Login bem-sucedido' : log.action}
+                          {log.action === 'Login Successful' ? 'Login bem-sucedido' : log.action}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground text-sm">
-                        {new Date(log.created_at).toLocaleString()}
+                        {new Date(log.created).toLocaleString()}
                       </TableCell>
                     </TableRow>
                   ))}

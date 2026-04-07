@@ -1,0 +1,24 @@
+migrate(
+  (app) => {
+    const users = app.findCollectionByNameOrId('users')
+
+    try {
+      app.findAuthRecordByEmail('users', 'rafamarsul@gmail.com')
+      return
+    } catch (_) {}
+
+    const record = new Record(users)
+    record.setEmail('rafamarsul@gmail.com')
+    record.setPassword('Skip@Pass')
+    record.setVerified(true)
+    record.set('name', 'Administrador')
+    record.set('role', 'manager')
+    app.save(record)
+  },
+  (app) => {
+    try {
+      const record = app.findAuthRecordByEmail('users', 'rafamarsul@gmail.com')
+      app.delete(record)
+    } catch (_) {}
+  },
+)
