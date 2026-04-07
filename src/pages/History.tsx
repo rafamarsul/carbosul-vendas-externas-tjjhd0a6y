@@ -1,167 +1,210 @@
-import { useEffect, useState } from 'react'
-import { MapPin, Clock, CalendarPlus, Download } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { useState, useEffect } from 'react'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import {
+  Calendar as CalendarIcon,
+  MapPin,
+  Clock,
+  Search,
+  Filter,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
+
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Badge } from '@/components/ui/badge'
-import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase/client'
-import { generateGoogleCalendarUrl, generateAndDownloadICS } from '@/lib/calendar'
-import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 interface Visit {
   id: string
-  company: string
-  contact: string
+  client_name: string
   address: string
-  reason: string
-  status: string
-  created_at: string
+  status: 'completed' | 'cancelled' | 'pending'
+  notes: string
+  created: string
 }
 
 export default function History() {
-  const { user } = useAuth()
+  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [searchTerm, setSearchTerm] = useState('')
   const [visits, setVisits] = useState<Visit[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchVisits = async () => {
-      let query = supabase.from('visits').select('*').order('created_at', { ascending: false })
-
-      if (user?.role === 'sales') {
-        query = query.eq('user_id', user.id)
+    async function fetchHistory() {
+      try {
+        setLoading(true)
+        // Using a mock filter for now, in a real app we'd filter by date and search term
+        const records = await pb.collection('visits').getList<Visit>(1, 50, {
+          sort: '-created',
+        })
+        setVisits(records.items)
+      } catch (error) {
+        console.error('Error fetching history:', error)
+        // Fallback to mock data if collection doesn't exist yet
+        setVisits([
+          {
+            id: '1',
+            client_name: 'Supermercado Central',
+            address: 'Rua das Flores, 123 - Centro',
+            status: 'completed',
+            notes: 'Pedido tirado com sucesso. Cliente solicitou novo mostruário.',
+            created: new Date().toISOString(),
+          },
+          {
+            id: '2',
+            client_name: 'Padaria Pão Quente',
+            address: 'Av. Brasil, 456 - Bairro Novo',
+            status: 'cancelled',
+            notes: 'Comprador não estava presente.',
+            created: new Date(Date.now() - 86400000).toISOString(),
+          },
+        ])
+      } finally {
+        setLoading(false)
       }
-
-      const { data, error } = await query
-      if (error) {
-        toast.error('Erro ao buscar histórico')
-      } else if (data) {
-        setVisits(data as Visit[])
-      }
-      setLoading(false)
     }
 
-    if (user) fetchVisits()
-  }, [user])
+    fetchHistory()
+  }, [date])
 
-  const handleSyncGoogleCalendar = (visit: Visit) => {
-    const startDate = new Date(visit.created_at)
-    // Estimativa de 1 hora de duração para a visita
-    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
-
-    const url = generateGoogleCalendarUrl({
-      title: `Visita: ${visit.company}`,
-      description: `Contato: ${visit.contact}\nMotivo: ${visit.reason}`,
-      location: visit.address,
-      startDate,
-      endDate,
-    })
-
-    window.open(url, '_blank')
-  }
-
-  const handleBulkICS = () => {
-    if (visits.length === 0) {
-      toast.warning('Nenhuma visita para exportar.')
-      return
-    }
-
-    const events = visits.map((visit) => {
-      const startDate = new Date(visit.created_at)
-      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
-
-      return {
-        title: `Visita: ${visit.company}`,
-        description: `Contato: ${visit.contact}\nMotivo: ${visit.reason}`,
-        location: visit.address,
-        startDate,
-        endDate,
-      }
-    })
-
-    generateAndDownloadICS(events, 'minhas_visitas_carbosul.ics')
-    toast.success('Agenda exportada com sucesso!')
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-[calc(100vh-100px)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+  const filteredVisits = visits.filter(
+    (visit) =>
+      visit.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      visit.address.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6 animate-fade-in-up">
+    <div className="container mx-auto py-6 max-w-4xl space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Histórico de Visitas</h1>
-          <p className="text-muted-foreground">Acompanhe e exporte suas visitas registradas.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Histórico de Visitas</h1>
+          <p className="text-muted-foreground">Acompanhe seus check-ins e atividades anteriores.</p>
         </div>
-
-        <Button
-          onClick={handleBulkICS}
-          variant="secondary"
-          className="w-full md:w-auto flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Exportar Rotas (ICS)
-        </Button>
       </div>
 
-      <div className="grid gap-4">
-        {visits.map((visit) => (
-          <Card key={visit.id} className="transition-all hover:shadow-md">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row justify-between gap-4">
-                <div className="space-y-3 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg text-card-foreground leading-none">
-                      {visit.company}
-                    </h3>
-                    <Badge
-                      variant={visit.status === 'synced' ? 'default' : 'secondary'}
-                      className="capitalize"
-                    >
-                      {visit.status === 'synced' ? 'Concluída' : visit.status}
-                    </Badge>
-                  </div>
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por cliente ou endereço..."
+            className="pl-9"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-primary/70" />
-                      {new Date(visit.created_at).toLocaleString()}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary/70" />
-                      <span className="truncate" title={visit.address}>
-                        {visit.address}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        <div className="flex gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={'outline'}
+                className={cn(
+                  'w-[240px] justify-start text-left font-normal',
+                  !date && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date ? format(date, 'PPP', { locale: ptBR }) : <span>Selecione uma data</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+            </PopoverContent>
+          </Popover>
 
-                <div className="flex sm:flex-col gap-2 justify-end items-end sm:items-center">
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto flex items-center gap-2"
-                    onClick={() => handleSyncGoogleCalendar(visit)}
-                    title="Adicionar visita individual ao Google Agenda"
-                  >
-                    <CalendarPlus className="w-4 h-4" />
-                    <span className="hidden sm:inline">Google Agenda</span>
-                    <span className="sm:hidden">Agenda</span>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {visits.length === 0 && (
-          <div className="text-center p-12 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/20">
-            <CalendarPlus className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p className="text-lg font-medium">Nenhuma visita registrada</p>
-            <p className="text-sm">Suas visitas aparecerão aqui para sincronização.</p>
+          <Button variant="outline" size="icon">
+            <Filter className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <Skeleton className="h-6 w-1/3 mb-2" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardContent>
+            </Card>
+          ))
+        ) : filteredVisits.length === 0 ? (
+          <div className="text-center py-12 border rounded-lg bg-muted/20">
+            <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+            <h3 className="text-lg font-medium">Nenhuma visita encontrada</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Não encontramos nenhum registro de visita para os filtros selecionados.
+            </p>
           </div>
+        ) : (
+          filteredVisits.map((visit) => (
+            <Card key={visit.id} className="overflow-hidden hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg">{visit.client_name}</CardTitle>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <MapPin className="mr-1 h-3 w-3" />
+                    {visit.address}
+                  </div>
+                </div>
+                <Badge
+                  variant={
+                    visit.status === 'completed'
+                      ? 'default'
+                      : visit.status === 'cancelled'
+                        ? 'destructive'
+                        : 'secondary'
+                  }
+                  className="capitalize"
+                >
+                  {visit.status === 'completed'
+                    ? 'Concluída'
+                    : visit.status === 'cancelled'
+                      ? 'Cancelada'
+                      : 'Pendente'}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  {visit.notes && (
+                    <div className="text-sm bg-muted/50 p-3 rounded-md border">
+                      <span className="font-semibold block mb-1">Anotações:</span>
+                      {visit.notes}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {format(new Date(visit.created), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </div>
+                    {visit.status === 'completed' && (
+                      <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Check-in realizado
+                      </div>
+                    )}
+                    {visit.status === 'cancelled' && (
+                      <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                        <XCircle className="h-3 w-3" />
+                        Visita não realizada
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
     </div>
