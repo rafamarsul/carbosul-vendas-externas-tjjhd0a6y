@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   MapPin,
   Navigation,
@@ -157,6 +157,24 @@ export default function Visits() {
     })
   }
 
+  useEffect(() => {
+    const handleOnline = async () => {
+      const pending = JSON.parse(localStorage.getItem('pendingVisits') || '[]')
+      if (pending.length > 0) {
+        toast.info('Conexão restabelecida', { description: 'Sincronizando visitas...' })
+        for (const visit of pending) {
+          visit.status = 'synced'
+          await addVisit(visit)
+        }
+        localStorage.removeItem('pendingVisits')
+        toast.success(`${pending.length} visitas sincronizadas com sucesso!`)
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [addVisit])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -170,24 +188,34 @@ export default function Visits() {
       formData.isPriority || formData.reason === 'fechamento' || formData.interest === 'alto'
     const initialApprovalStatus = isSpecialVisit ? 'pending' : 'approved'
 
-    await addVisit({
+    const visitData = {
       id: Math.random().toString(36).substring(2, 9),
       salesmanId: user?.id || 'unknown',
       salesmanName: user?.name || 'Vendedor',
       ...formData,
       products: productsObj,
       timestamp: new Date().toISOString(),
-      status: 'synced',
+      status: navigator.onLine ? 'synced' : 'pending_sync',
       priority: formData.isPriority,
       approvalStatus: initialApprovalStatus,
-    })
+    }
 
-    if (isSpecialVisit) {
-      toast.success('Visita registrada!', {
-        description: 'Enviada para revisão da gerência devido ao perfil da visita.',
-      })
+    if (navigator.onLine) {
+      await addVisit(visitData)
+      if (isSpecialVisit) {
+        toast.success('Visita registrada!', {
+          description: 'Enviada para revisão da gerência devido ao perfil da visita.',
+        })
+      } else {
+        toast.success('Visita concluída com sucesso!')
+      }
     } else {
-      toast.success('Visita concluída com sucesso!')
+      const pending = JSON.parse(localStorage.getItem('pendingVisits') || '[]')
+      pending.push(visitData)
+      localStorage.setItem('pendingVisits', JSON.stringify(pending))
+      toast.success('Modo Offline: Visita salva localmente', {
+        description: 'Será sincronizada automaticamente quando a conexão for restabelecida.',
+      })
     }
 
     setTimeout(() => {
