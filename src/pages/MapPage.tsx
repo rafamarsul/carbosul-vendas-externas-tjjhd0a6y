@@ -1,4 +1,4 @@
-import { MapMock } from '@/components/MapMock'
+import { GoogleMap } from '@/components/GoogleMap'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Search, Filter } from 'lucide-react'
@@ -50,7 +50,7 @@ export default function MapPage() {
       </div>
 
       <div className="flex-1 relative">
-        <MapMock className="absolute inset-0 w-full h-full" markers={mapMarkers} showPolygon />
+        <GoogleMap className="absolute inset-0 w-full h-full" markers={mapMarkers} showPolygon />
 
         {/* Playback controls mock */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-card p-2 rounded-full shadow-lg border flex items-center gap-2">

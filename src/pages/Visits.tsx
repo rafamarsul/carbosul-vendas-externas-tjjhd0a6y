@@ -22,10 +22,24 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { MapMock } from '@/components/MapMock'
+import { GoogleMap } from '@/components/GoogleMap'
 import { useAuth } from '@/contexts/AuthContext'
 import { useData } from '@/contexts/DataContext'
-import { getWhatsAppUrl, calculateMockDistance } from '@/lib/utils'
+import { getWhatsAppUrl } from '@/lib/utils'
+
+function calculateRealDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * (Math.PI / 180)
+  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
 
 const CORE_PRODUCTS = [
   'Carvão Ativado Granulado',
@@ -66,35 +80,55 @@ export default function Visits() {
 
   const handleCheckIn = () => {
     setIsCheckingIn(true)
-    setTimeout(() => {
-      const mockLat = 40 + Math.random() * 20
-      const mockLng = 50 + Math.random() * 20
-      let priorityHit = false
-      let matchedZoneName = ''
 
-      for (const zone of zones) {
-        if (calculateMockDistance(mockLat, mockLng, zone.lat, zone.lng) <= zone.radius) {
-          priorityHit = true
-          matchedZoneName = zone.name
-          break
-        }
-      }
-
-      setFormData((prev) => ({ ...prev, lat: mockLat, lng: mockLng, isPriority: priorityHit }))
-      setHasCheckedIn(true)
+    if (!navigator.geolocation) {
+      toast.error('Geolocalização não suportada', {
+        description: 'Seu navegador não suporta captura de localização.',
+      })
       setIsCheckingIn(false)
+      return
+    }
 
-      toast.success('Check-in realizado com sucesso!')
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const realLat = position.coords.latitude
+        const realLng = position.coords.longitude
 
-      if (priorityHit) {
-        setTimeout(() => {
-          toast.error(`🚨 Zona Crítica Detectada: ${matchedZoneName}`, {
-            description: `Sua visita foi automaticamente marcada como prioritária para a gerência.`,
-            duration: 6000,
-          })
-        }, 1000)
-      }
-    }, 1500)
+        let priorityHit = false
+        let matchedZoneName = ''
+
+        for (const zone of zones) {
+          if (calculateRealDistance(realLat, realLng, zone.lat, zone.lng) <= zone.radius) {
+            priorityHit = true
+            matchedZoneName = zone.name
+            break
+          }
+        }
+
+        setFormData((prev) => ({ ...prev, lat: realLat, lng: realLng, isPriority: priorityHit }))
+        setHasCheckedIn(true)
+        setIsCheckingIn(false)
+
+        toast.success('Check-in realizado com sucesso!')
+
+        if (priorityHit) {
+          setTimeout(() => {
+            toast.error(`🚨 Zona Crítica Detectada: ${matchedZoneName}`, {
+              description: `Sua visita foi automaticamente marcada como prioritária para a gerência.`,
+              duration: 6000,
+            })
+          }, 1000)
+        }
+      },
+      (error) => {
+        console.error(error)
+        toast.error('Erro de Localização', {
+          description: 'Não foi possível obter sua localização. Verifique as permissões.',
+        })
+        setIsCheckingIn(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    )
   }
 
   const handleProductToggle = (product: string, checked: boolean) => {
@@ -167,8 +201,16 @@ export default function Visits() {
 
         <Card className="border-secondary/50 shadow-md overflow-hidden">
           <div className="h-48 w-full relative border-b">
-            <MapMock
-              markers={[{ id: 'me', lat: 50, lng: 50, color: '#004A99', label: 'Local Atual' }]}
+            <GoogleMap
+              markers={[
+                {
+                  id: 'me',
+                  lat: formData.lat || -23.55,
+                  lng: formData.lng || -46.63,
+                  color: '#004A99',
+                  label: 'Local Atual',
+                },
+              ]}
               zones={zones}
             />
           </div>

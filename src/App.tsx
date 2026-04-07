@@ -11,6 +11,7 @@ import Team from './pages/Team'
 import Visits from './pages/Visits'
 import History from './pages/History'
 import Reviews from './pages/Reviews'
+import Reports from './pages/Reports'
 import Zones from './pages/Zones'
 import MapPage from './pages/MapPage'
 import NotFound from './pages/NotFound'
@@ -31,6 +32,7 @@ const App = () => (
                 <Route path="/equipe" element={<Team />} />
                 <Route path="/visitas" element={<Visits />} />
                 <Route path="/historico" element={<History />} />
+                <Route path="/relatorios" element={<Reports />} />
                 <Route path="/revisoes" element={<Reviews />} />
                 <Route path="/zonas" element={<Zones />} />
                 <Route path="/mapa" element={<MapPage />} />
