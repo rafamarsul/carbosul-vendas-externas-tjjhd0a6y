@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-04-07T01:13:04.464Z",
+  "generatedAt": "2026-04-07T01:17:29.642Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id",
-        "view": "id = @request.auth.id",
+        "list": "@request.auth.role = 'manager' || id = @request.auth.id",
+        "view": "@request.auth.role = 'manager' || id = @request.auth.id",
         "create": "",
         "update": "id = @request.auth.id",
         "delete": "id = @request.auth.id"
@@ -55,8 +55,8 @@
       "name": "audit_logs",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.role = 'manager'",
+        "view": "@request.auth.role = 'manager'",
         "create": "@request.auth.id != ''",
         "update": null,
         "delete": null
@@ -102,11 +102,11 @@
       "name": "visits",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.role = 'manager' || user_id = @request.auth.id",
+        "view": "@request.auth.role = 'manager' || user_id = @request.auth.id",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "update": "@request.auth.role = 'manager' || user_id = @request.auth.id",
+        "delete": "@request.auth.role = 'manager' || user_id = @request.auth.id"
       },
       "fields": [
         {

@@ -91,6 +91,7 @@ export default function AuditLogs() {
                     <TableHead>Usuário</TableHead>
                     <TableHead>Perfil</TableHead>
                     <TableHead>Ação</TableHead>
+                    <TableHead>Endereço IP</TableHead>
                     <TableHead className="text-right">Data/Hora</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -129,6 +130,9 @@ export default function AuditLogs() {
                         >
                           {log.action === 'Login Successful' ? 'Login bem-sucedido' : log.action}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm font-mono text-muted-foreground">
+                        {log.ip_address || 'N/A'}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground text-sm">
                         {new Date(log.created).toLocaleString()}

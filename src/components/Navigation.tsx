@@ -20,18 +20,18 @@ export function DesktopSidebar() {
   const navItems =
     user?.role === 'manager'
       ? [
-          { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+          { to: '/', label: 'Dashboard Global', icon: LayoutDashboard },
           { to: '/equipe', label: 'Equipe', icon: Users },
-          { to: '/revisoes', label: 'Revisões', icon: CheckSquare },
+          { to: '/revisoes', label: 'Todas as Visitas', icon: CheckSquare },
           { to: '/mapa', label: 'Mapa', icon: Map },
-          { to: '/zonas', label: 'Zonas', icon: Target },
+          { to: '/zonas', label: 'Gestão de Zonas', icon: Target },
           { to: '/auditoria', label: 'Auditoria', icon: Shield },
         ]
       : [
-          { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-          { to: '/visitas', label: 'Nova Visita', icon: MapPin },
-          { to: '/historico', label: 'Histórico', icon: History },
-          { to: '/mapa', label: 'Mapa', icon: Map },
+          { to: '/', label: 'Meu Dashboard', icon: LayoutDashboard },
+          { to: '/historico', label: 'Minhas Visitas', icon: History },
+          { to: '/visitas', label: 'Registrar Visita', icon: MapPin },
+          { to: '/mapa', label: 'Mapa / Zonas', icon: Map },
         ]
 
   return (
@@ -94,14 +94,14 @@ export function MobileBottomNav() {
     user?.role === 'manager'
       ? [
           { to: '/', label: 'Dash', icon: LayoutDashboard },
-          { to: '/revisoes', label: 'Revisões', icon: CheckSquare },
-          { to: '/mapa', label: 'Mapa', icon: Map },
+          { to: '/revisoes', label: 'Visitas', icon: CheckSquare },
           { to: '/zonas', label: 'Zonas', icon: Target },
+          { to: '/auditoria', label: 'Audit', icon: Shield },
         ]
       : [
           { to: '/', label: 'Dash', icon: LayoutDashboard },
+          { to: '/historico', label: 'Minhas', icon: History },
           { to: '/visitas', label: 'Visitar', icon: MapPin },
-          { to: '/historico', label: 'Histórico', icon: History },
           { to: '/mapa', label: 'Mapa', icon: Map },
         ]
 
