@@ -8,11 +8,20 @@ import { GoogleMap } from '@/components/GoogleMap'
 import { Trash2, MapPin, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getZones, createZone, deleteZone } from '@/services/zones'
+import { getUsers } from '@/services/users'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export default function Zones() {
   const [zones, setZones] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
@@ -21,23 +30,25 @@ export default function Zones() {
     lat: -23.55052,
     lng: -46.633309,
     radius: 1000,
+    user_id: '',
   })
 
-  const loadZones = async () => {
+  const loadData = async () => {
     try {
-      const data = await getZones()
-      setZones(data)
+      const [zonesData, usersData] = await Promise.all([getZones(), getUsers()])
+      setZones(zonesData)
+      setUsers(usersData.filter((u: any) => u.role === 'sales'))
     } catch (err) {
-      toast.error('Erro ao carregar zonas')
+      toast.error('Erro ao carregar dados')
     }
   }
 
   useEffect(() => {
-    loadZones()
+    loadData()
   }, [])
 
   useRealtime('zones', () => {
-    loadZones()
+    loadData()
   })
 
   const handleMapClick = (lat: number, lng: number) => {
@@ -47,6 +58,14 @@ export default function Zones() {
   const handleAdd = async () => {
     if (!newZone.name) {
       toast.error('Informe um nome para a zona.')
+      return
+    }
+    if (!newZone.user_id) {
+      toast.error('Selecione um vendedor responsável.')
+      return
+    }
+    if (newZone.radius <= 0) {
+      toast.error('O raio deve ser um valor positivo.')
       return
     }
     try {
@@ -73,6 +92,11 @@ export default function Zones() {
     }
   }
 
+  const getSellerName = (userId: string) => {
+    const user = users.find((u) => u.id === userId)
+    return user ? user.name || user.email : 'Desconhecido'
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -94,7 +118,7 @@ export default function Zones() {
               </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0 flex-1 relative">
+          <CardContent className="p-0 flex-1 relative z-0">
             <GoogleMap
               className="w-full h-full rounded-b-xl"
               zones={[
@@ -120,6 +144,24 @@ export default function Zones() {
                   value={newZone.name}
                   onChange={(e) => setNewZone((p) => ({ ...p, name: e.target.value }))}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Vendedor Responsável</Label>
+                <Select
+                  value={newZone.user_id}
+                  onValueChange={(v) => setNewZone((p) => ({ ...p, user_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name || u.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Raio de Abrangência (metros)</Label>
@@ -168,7 +210,9 @@ export default function Zones() {
                   >
                     <div>
                       <p className="font-medium text-sm">{z.name}</p>
-                      <p className="text-xs text-muted-foreground">Raio: {z.radius}m</p>
+                      <p className="text-xs text-muted-foreground">
+                        Raio: {z.radius}m • Vendedor: {getSellerName(z.user_id)}
+                      </p>
                     </div>
                     <Button
                       variant="ghost"

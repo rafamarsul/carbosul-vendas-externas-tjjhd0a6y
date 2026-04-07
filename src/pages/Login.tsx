@@ -47,10 +47,20 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)
-    const { error } = await signInWithGoogle()
-    setIsLoading(false)
-    if (error) {
-      toast.error('Erro no login social', { description: getErrorMessage(error) })
+    try {
+      const { error } = await signInWithGoogle()
+      if (error) {
+        toast.error('Erro no login com Google', {
+          description:
+            'Não foi possível conectar ao Google. Verifique se o provedor está configurado corretamente.',
+        })
+      }
+    } catch (error) {
+      toast.error('Erro de conexão', {
+        description: 'Falha ao tentar acessar o provedor de autenticação.',
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
