@@ -26,7 +26,6 @@ export function DesktopSidebar() {
           { to: '/mapa', label: 'Mapa', icon: Map },
           { to: '/zonas', label: 'Zonas', icon: Target },
           { to: '/auditoria', label: 'Auditoria', icon: Shield },
-          { to: '/auditoria', label: 'Auditoria', icon: Shield },
         ]
       : [
           { to: '/', label: 'Dashboard', icon: LayoutDashboard },
