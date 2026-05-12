@@ -9,6 +9,7 @@ import {
   History,
   Target,
   Shield,
+  CalendarDays,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,6 +23,7 @@ export function DesktopSidebar() {
       ? [
           { to: '/', label: 'Dashboard Global', icon: LayoutDashboard },
           { to: '/gerenciamento', label: 'Gerenciamento', icon: Users },
+          { to: '/roteiros', label: 'Roteiros', icon: CalendarDays },
           { to: '/revisoes', label: 'Todas as Visitas', icon: CheckSquare },
           { to: '/mapa', label: 'Mapa', icon: Map },
           { to: '/admin/reports', label: 'Relatórios', icon: Target },
@@ -95,7 +97,7 @@ export function MobileBottomNav() {
       ? [
           { to: '/', label: 'Dash', icon: LayoutDashboard },
           { to: '/admin/reports', label: 'Relatórios', icon: Target },
-          { to: '/revisoes', label: 'Visitas', icon: CheckSquare },
+          { to: '/roteiros', label: 'Roteiros', icon: CalendarDays },
           { to: '/gerenciamento', label: 'Gestão', icon: Users },
         ]
       : [

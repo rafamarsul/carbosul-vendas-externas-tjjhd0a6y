@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-12T17:33:51.358Z",
+  "generatedAt": "2026-05-12T17:56:48.643Z",
   "collections": [
     {
       "name": "users",
@@ -290,6 +290,75 @@
           "type": "text",
           "required": false,
           "system": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "schedules",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'manager' || user_id = @request.auth.id",
+        "view": "@request.auth.role = 'manager' || user_id = @request.auth.id",
+        "create": "@request.auth.role = 'manager'",
+        "update": "@request.auth.role = 'manager'",
+        "delete": "@request.auth.role = 'manager'"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "week_number",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "day_of_week",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ]
+        },
+        {
+          "name": "zone_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "zones"
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

@@ -26,6 +26,8 @@ import { GoogleMap } from '@/components/GoogleMap'
 import { useAuth } from '@/contexts/AuthContext'
 import { useData } from '@/contexts/DataContext'
 import { getWhatsAppUrl } from '@/lib/utils'
+import { getMySchedules } from '@/services/schedules'
+import { getCycleInfo } from '@/lib/cycle'
 
 function calculateRealDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371
@@ -59,6 +61,21 @@ export default function Visits() {
   const [hasCheckedIn, setHasCheckedIn] = useState(false)
   const [isCheckingIn, setIsCheckingIn] = useState(false)
   const [step, setStep] = useState(1)
+
+  const [todayZone, setTodayZone] = useState<any>(null)
+
+  useEffect(() => {
+    if (!user?.id) return
+    getMySchedules(user.id)
+      .then((schedules) => {
+        const { cycleWeek, dayStr } = getCycleInfo()
+        const sch = schedules.find((s) => s.week_number === cycleWeek && s.day_of_week === dayStr)
+        if (sch && sch.expand?.zone_id) {
+          setTodayZone(sch.expand.zone_id)
+        }
+      })
+      .catch(() => {})
+  }, [user?.id])
 
   const [formData, setFormData] = useState({
     company: 'Indústria Nova',
@@ -94,26 +111,27 @@ export default function Visits() {
         const realLat = position.coords.latitude
         const realLng = position.coords.longitude
 
-        // Simulação de endereço esperado do cliente para o Alerta de Desvio
-        const expectedLat = realLat + (Math.random() > 0.7 ? 0.015 : 0.002) // Pode estar até ~1.5km de distância
-        const expectedLng = realLng + (Math.random() > 0.7 ? 0.015 : 0.002)
-        const distanceToClient = calculateRealDistance(realLat, realLng, expectedLat, expectedLng)
-
-        if (distanceToClient > 0.5) {
-          toast('🚨 Alerta de Desvio Geográfico', {
-            description: `Você está a ${distanceToClient.toFixed(1)}km do endereço esperado para este cliente.`,
-            duration: 8000,
-          })
-        }
-
         let priorityHit = false
         let matchedZoneName = ''
 
-        for (const zone of zones) {
-          if (calculateRealDistance(realLat, realLng, zone.lat, zone.lng) <= zone.radius) {
+        if (todayZone) {
+          const distToZone = calculateRealDistance(realLat, realLng, todayZone.lat, todayZone.lng)
+          if (distToZone > todayZone.radius) {
+            toast('🚨 Alerta de Desvio de Rota', {
+              description: `Atenção: Você está a ${distToZone.toFixed(1)}km da sua zona de atuação hoje (${todayZone.name}). Esta visita será sinalizada para a gerência.`,
+              duration: 8000,
+            })
             priorityHit = true
-            matchedZoneName = zone.name
-            break
+            matchedZoneName = todayZone.name
+          }
+        } else {
+          // Fallback to old logic if no schedule assigned
+          for (const zone of zones) {
+            if (calculateRealDistance(realLat, realLng, zone.lat, zone.lng) <= zone.radius) {
+              priorityHit = true
+              matchedZoneName = zone.name
+              break
+            }
           }
         }
 

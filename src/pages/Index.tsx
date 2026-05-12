@@ -28,6 +28,9 @@ import { toast } from 'sonner'
 import { useData } from '@/contexts/DataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Badge } from '@/components/ui/badge'
+import { useEffect } from 'react'
+import { getMySchedules } from '@/services/schedules'
+import { getCycleInfo } from '@/lib/cycle'
 import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts'
@@ -44,6 +47,27 @@ const PRODUCTS_LIST = [
 ]
 
 function SalesDashboard({ visits }: { visits: any[] }) {
+  const { user } = useAuth()
+  const [todaySchedule, setTodaySchedule] = useState<any>(null)
+
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      if (!user?.id) return
+      try {
+        const schedules = await getMySchedules(user.id)
+        const { cycleWeek, dayStr } = getCycleInfo()
+        const todaySch = schedules.find(
+          (s) => s.week_number === cycleWeek && s.day_of_week === dayStr,
+        )
+        setTodaySchedule(todaySch || null)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    fetchSchedule()
+  }, [user?.id])
+
+  const { cycleWeek, dayLabel } = getCycleInfo()
   const today = new Date().toISOString().split('T')[0]
   const todayVisits = visits.filter(
     (v) =>
@@ -68,6 +92,47 @@ function SalesDashboard({ visits }: { visits: any[] }) {
           <MapPin className="mr-2 h-4 w-4" /> Iniciar Visita
         </Button>
       </div>
+
+      {todaySchedule && todaySchedule.expand?.zone_id && (
+        <Card className="bg-primary/5 border-primary/20 shadow-sm animate-fade-in-up">
+          <CardContent className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex gap-4 items-center">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">
+                  Rota de Hoje{' '}
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    (Semana {cycleWeek} • {dayLabel})
+                  </span>
+                </h3>
+                <p className="text-muted-foreground font-medium">
+                  Zona Designada:{' '}
+                  <span className="text-primary">{todaySchedule.expand.zone_id.name}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  CEP Alvo: {todaySchedule.expand.zone_id.cep || 'Não definido'}
+                </p>
+              </div>
+            </div>
+            <Button
+              className="w-full md:w-auto shadow-sm"
+              variant="outline"
+              onClick={() => {
+                const zone = todaySchedule.expand.zone_id
+                // using OpenStreetMap directions
+                window.open(
+                  `https://www.openstreetmap.org/directions?engine=osrm_car&route=%3B${zone.lat}%2C${zone.lng}`,
+                  '_blank',
+                )
+              }}
+            >
+              <MapPin className="mr-2 h-4 w-4" /> Ver no Mapa
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="hover:shadow-md transition-shadow">
@@ -222,6 +287,28 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
       { name: 'Pendentes', value: counts.pending, fill: '#eab308' },
       { name: 'Revisão', value: counts.needs_review, fill: '#dc2626' },
     ]
+  }, [filteredVisits])
+
+  const zonePerformanceData = useMemo(() => {
+    const performance: Record<
+      string,
+      { total: number; approved: number; pending: number; review: number }
+    > = {}
+    filteredVisits.forEach((v) => {
+      // For mock, try to use zone name or region if zone not populated
+      const zoneName = v.expand?.zone_id?.name || v.region || 'Desconhecida'
+      if (!performance[zoneName]) {
+        performance[zoneName] = { total: 0, approved: 0, pending: 0, review: 0 }
+      }
+      performance[zoneName].total++
+      if (v.approvalStatus === 'approved') performance[zoneName].approved++
+      else if (v.approvalStatus === 'needs_review') performance[zoneName].review++
+      else performance[zoneName].pending++
+    })
+    return Object.entries(performance)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5)
   }, [filteredVisits])
 
   const mapMarkers = filteredVisits.map((v, i) => ({
@@ -387,37 +474,42 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
         <Card className="shadow-sm">
           <CardHeader className="border-b">
             <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" /> Status de Aprovação
+              <TrendingUp className="w-5 h-5 text-primary" /> Performance por Zona
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="h-[300px]">
-              <ChartContainer config={{ value: { label: 'Qtd' } }}>
+              <ChartContainer
+                config={{
+                  total: { label: 'Total Visitas', color: 'hsl(var(--primary))' },
+                  approved: { label: 'Aprovadas', color: '#16a34a' },
+                }}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={approvalData}
-                    layout="vertical"
-                    margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                    data={zonePerformanceData}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
-                      horizontal={false}
+                      vertical={false}
                       className="stroke-muted"
                     />
-                    <XAxis type="number" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                    />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={40}>
-                      {approvalData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
+                    <Bar
+                      dataKey="total"
+                      fill="var(--color-total)"
+                      radius={[4, 4, 0, 0]}
+                      barSize={20}
+                    />
+                    <Bar
+                      dataKey="approved"
+                      fill="var(--color-approved)"
+                      radius={[4, 4, 0, 0]}
+                      barSize={20}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>

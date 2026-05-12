@@ -8,14 +8,40 @@ onRecordCreate((e) => {
     return e.next()
   }
 
+  const now = new Date()
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const dayStr = days[now.getDay()]
+
+  // Calculate cycle week 1-4 based on epoch weeks
+  // Jan 1 1970 was Thursday. Offset by 4 days so week starts on Monday.
+  const epochDays = Math.floor(
+    (now.getTime() - now.getTimezoneOffset() * 60000) / (1000 * 60 * 60 * 24),
+  )
+  const epochWeeks = Math.floor((epochDays + 3) / 7)
+  const cycleWeek = (epochWeeks % 4) + 1
+
+  let assignedZone = null
+  let minDistance = Infinity
+  let closestZone = null
+
+  // 1. Try to find if there is a scheduled zone for today
+  try {
+    const schedule = $app.findFirstRecordByFilter(
+      'schedules',
+      `user_id = '${userId}' && week_number = ${cycleWeek} && day_of_week = '${dayStr}'`,
+    )
+    if (schedule) {
+      const zoneId = schedule.getString('zone_id')
+      assignedZone = $app.findRecordById('zones', zoneId)
+    }
+  } catch (err) {}
+
   let zones = []
   try {
     zones = $app.findRecordsByFilter('zones', `user_id = '${userId}'`, '-created', 100, 0)
-  } catch (err) {
-    // Expected to throw if no rows in result set
-  }
+  } catch (err) {}
 
-  if (zones.length === 0) {
+  if (zones.length === 0 && !assignedZone) {
     return e.next()
   }
 
@@ -36,14 +62,24 @@ onRecordCreate((e) => {
   let minDistance = Infinity
   let closestZone = null
 
-  for (const zone of zones) {
-    const zLat = zone.getFloat('lat')
-    const zLng = zone.getFloat('lng')
-    const zRadius = zone.getFloat('radius')
-    const dist = calculateRealDistance(lat, lng, zLat, zLng)
-    if (dist < minDistance) {
-      minDistance = dist
-      closestZone = zone
+  // If assigned zone exists, we only validate against it
+  if (assignedZone) {
+    closestZone = assignedZone
+    minDistance = calculateRealDistance(
+      lat,
+      lng,
+      assignedZone.getFloat('lat'),
+      assignedZone.getFloat('lng'),
+    )
+  } else {
+    for (const zone of zones) {
+      const zLat = zone.getFloat('lat')
+      const zLng = zone.getFloat('lng')
+      const dist = calculateRealDistance(lat, lng, zLat, zLng)
+      if (dist < minDistance) {
+        minDistance = dist
+        closestZone = zone
+      }
     }
   }
 
@@ -51,7 +87,9 @@ onRecordCreate((e) => {
     visit.set('approval_status', 'needs_review')
     visit.set(
       'manager_comment',
-      `Out of Range. Distance: ${minDistance.toFixed(2)}km. Max radius: ${closestZone.getFloat('radius').toFixed(2)}km`,
+      assignedZone
+        ? `Out of Scheduled Zone (${closestZone.getString('name')}). Distance: ${minDistance.toFixed(2)}km.`
+        : `Out of Range. Distance: ${minDistance.toFixed(2)}km. Max radius: ${closestZone.getFloat('radius').toFixed(2)}km`,
     )
     visit.set('priority', true)
 

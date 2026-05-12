@@ -15,6 +15,7 @@ import Reports from './pages/Reports'
 import AdminReports from './pages/AdminReports'
 import Zones from './pages/Zones'
 import Management from './pages/Management'
+import Schedules from './pages/Schedules'
 import MapPage from './pages/MapPage'
 import AuditLogs from './pages/AuditLogs'
 import NotFound from './pages/NotFound'
@@ -37,6 +38,7 @@ const App = () => (
 
                 <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
                   <Route path="/gerenciamento" element={<Management />} />
+                  <Route path="/roteiros" element={<Schedules />} />
                   <Route path="/relatorios" element={<Reports />} />
                   <Route path="/admin/reports" element={<AdminReports />} />
                   <Route path="/revisoes" element={<Reviews />} />
