@@ -59,9 +59,6 @@ onRecordCreate((e) => {
     return R * c
   }
 
-  let minDistance = Infinity
-  let closestZone = null
-
   // If assigned zone exists, we only validate against it
   if (assignedZone) {
     closestZone = assignedZone
