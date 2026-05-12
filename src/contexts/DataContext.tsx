@@ -31,6 +31,8 @@ export interface PriorityZone {
   lat: number
   lng: number
   radius: number
+  userId?: string
+  cep?: string
 }
 
 interface DataContextType {
@@ -66,6 +68,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           lat: z.lat,
           lng: z.lng,
           radius: z.radius,
+          userId: z.user_id,
+          cep: z.cep,
         })),
       )
     } catch (e) {
@@ -191,6 +195,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         lat: zone.lat,
         lng: zone.lng,
         radius: zone.radius,
+        user_id: zone.userId,
+        cep: zone.cep,
       })
     } catch (e) {
       console.error(e)

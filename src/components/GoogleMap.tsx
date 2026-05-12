@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-export function GoogleMap({ className, markers = [], zones = [], onClick }: GoogleMapProps) {
+export function GoogleMap({ className, markers = [], zones = [], route, onClick }: GoogleMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const [loaded, setLoaded] = useState(false)
@@ -99,13 +99,20 @@ export function GoogleMap({ className, markers = [], zones = [], onClick }: Goog
         .bindTooltip(marker.label || '', { permanent: false })
     })
 
-    if (markers.length > 0 || zones.length > 0) {
+    if (route && route.length > 0) {
+      const latlngs = route.map((p) => [p.lat, p.lng])
+      L.polyline(latlngs, { color: '#0ea5e9', weight: 4, opacity: 0.8, dashArray: '8, 8' }).addTo(
+        markersLayerRef.current,
+      )
+    }
+
+    if (markers.length > 0 || zones.length > 0 || (route && route.length > 0)) {
       const group = L.featureGroup([markersLayerRef.current, zonesLayerRef.current])
       if (group.getBounds().isValid()) {
         map.fitBounds(group.getBounds(), { padding: [20, 20], maxZoom: 15 })
       }
     }
-  }, [loaded, markers, zones])
+  }, [loaded, markers, zones, route])
 
   return (
     <>

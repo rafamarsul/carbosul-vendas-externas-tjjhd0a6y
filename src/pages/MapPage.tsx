@@ -39,6 +39,8 @@ export default function MapPage() {
   const [filters, setFilters] = useState<VisitStatus[]>(['pending', 'delayed', 'completed'])
   const [searchTerm, setSearchTerm] = useState('')
   const [optimizedRoute, setOptimizedRoute] = useState<MapPoint[] | null>(null)
+  const [routePath, setRoutePath] = useState<{ lat: number; lng: number }[] | undefined>(undefined)
+  const [isOptimizing, setIsOptimizing] = useState(false)
 
   // Memoize points combining real visits and some mock scheduled visits for demonstration
   const allPoints = useMemo<MapPoint[]>(() => {
@@ -103,7 +105,7 @@ export default function MapPage() {
     return pts
   }, [allPoints, filters, searchTerm])
 
-  const handleOptimize = () => {
+  const handleOptimize = async () => {
     if (filteredPoints.length === 0) {
       toast.error('Nenhum ponto para otimizar', {
         description: 'Ajuste os filtros e tente novamente.',
@@ -111,11 +113,12 @@ export default function MapPage() {
       return
     }
 
+    setIsOptimizing(true)
+
     // Nearest neighbor algorithm
     const unvisited = [...filteredPoints]
     const optimized: MapPoint[] = []
 
-    // Start with the first point
     let current = unvisited.shift()!
     optimized.push(current)
 
@@ -141,9 +144,40 @@ export default function MapPage() {
     }
 
     setOptimizedRoute(optimized)
-    toast.success('Rota Otimizada!', {
-      description: 'A sequência de visitas foi recalculada para a menor distância.',
-    })
+
+    try {
+      // Fetch actual path from OSRM
+      const coordsString = optimized.map((p) => `${p.lng},${p.lat}`).join(';')
+      const res = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`,
+      )
+
+      if (!res.ok) throw new Error('OSRM API Error')
+
+      const data = await res.json()
+      if (data.routes && data.routes.length > 0) {
+        const polylineCoords = data.routes[0].geometry.coordinates.map((c: number[]) => ({
+          lat: c[1],
+          lng: c[0],
+        }))
+        setRoutePath(polylineCoords)
+      } else {
+        setRoutePath(optimized.map((p) => ({ lat: p.lat, lng: p.lng })))
+      }
+
+      toast.success('Rota Otimizada!', {
+        description: 'A sequência de visitas e o trajeto foram traçados com sucesso.',
+      })
+    } catch (err) {
+      console.error(err)
+      toast.error('Aviso: Rota via satélite indisponível.', {
+        description: 'Desenhando percurso em linha reta.',
+      })
+      // Fallback
+      setRoutePath(optimized.map((p) => ({ lat: p.lat, lng: p.lng })))
+    } finally {
+      setIsOptimizing(false)
+    }
   }
 
   const mapMarkers = filteredPoints.map((p) => ({
@@ -153,10 +187,6 @@ export default function MapPage() {
     label: p.name,
     color: p.status === 'completed' ? '#22C55E' : p.status === 'delayed' ? '#EF4444' : '#EAB308',
   }))
-
-  const routePath = optimizedRoute
-    ? optimizedRoute.map((p) => ({ lat: p.lat, lng: p.lng }))
-    : undefined
 
   const displayedList = optimizedRoute || filteredPoints
 
@@ -209,9 +239,16 @@ export default function MapPage() {
           </ToggleGroup>
         </div>
 
-        <Button onClick={handleOptimize} className="w-full shadow-sm" variant="secondary">
-          <RouteIcon className="w-4 h-4 mr-2" />
-          Otimizar Rota Atual
+        <Button
+          onClick={handleOptimize}
+          className="w-full shadow-sm"
+          variant="secondary"
+          disabled={isOptimizing}
+        >
+          <RouteIcon
+            className={`w-4 h-4 mr-2 ${isOptimizing ? 'animate-pulse text-primary' : ''}`}
+          />
+          {isOptimizing ? 'Traçando Rota...' : 'Sugerir Rota Otimizada'}
         </Button>
 
         <div className="flex-1 overflow-y-auto pt-2 border-t mt-2 pb-16 md:pb-0">
@@ -224,7 +261,10 @@ export default function MapPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setOptimizedRoute(null)}
+                onClick={() => {
+                  setOptimizedRoute(null)
+                  setRoutePath(undefined)
+                }}
                 className="h-6 text-xs text-destructive"
               >
                 Limpar Rota
