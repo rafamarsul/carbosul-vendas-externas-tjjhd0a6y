@@ -11,7 +11,7 @@ interface GoogleMapProps {
 
 declare global {
   interface Window {
-    L: any
+    google: any
   }
 }
 
@@ -19,8 +19,9 @@ export function GoogleMap({ className, markers = [], zones = [], route, onClick 
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const [loaded, setLoaded] = useState(false)
-  const markersLayerRef = useRef<any>(null)
-  const zonesLayerRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([])
+  const zonesRef = useRef<any[]>([])
+  const routeRef = useRef<any>(null)
   const clickHandlerRef = useRef(onClick)
 
   useEffect(() => {
@@ -28,19 +29,28 @@ export function GoogleMap({ className, markers = [], zones = [], route, onClick 
   }, [onClick])
 
   useEffect(() => {
-    if (window.L) {
+    if (window.google && window.google.maps) {
       setLoaded(true)
       return
     }
 
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
+    const scriptId = 'google-maps-script'
+    if (document.getElementById(scriptId)) {
+      const checkInterval = setInterval(() => {
+        if (window.google && window.google.maps) {
+          clearInterval(checkInterval)
+          setLoaded(true)
+        }
+      }, 500)
+      return () => clearInterval(checkInterval)
+    }
 
     const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    script.id = scriptId
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`
     script.async = true
+    script.defer = true
     script.onload = () => setLoaded(true)
     document.head.appendChild(script)
 
@@ -48,79 +58,109 @@ export function GoogleMap({ className, markers = [], zones = [], route, onClick 
   }, [])
 
   useEffect(() => {
-    if (!loaded || !mapRef.current || !window.L) return
+    if (!loaded || !mapRef.current || !window.google) return
 
     if (!mapInstanceRef.current) {
-      const center = markers.length > 0 ? [markers[0].lat, markers[0].lng] : [-23.55052, -46.633309]
-      const map = window.L.map(mapRef.current).setView(center, 12)
+      const center =
+        markers.length > 0
+          ? { lat: markers[0].lat, lng: markers[0].lng }
+          : { lat: -23.55052, lng: -46.633309 }
 
-      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map)
-
-      map.on('click', (e: any) => {
-        if (clickHandlerRef.current) {
-          clickHandlerRef.current(e.latlng.lat, e.latlng.lng)
-        }
+      const map = new window.google.maps.Map(mapRef.current, {
+        center,
+        zoom: 12,
+        mapTypeId: 'roadmap',
+        disableDefaultUI: false,
       })
 
-      markersLayerRef.current = window.L.layerGroup().addTo(map)
-      zonesLayerRef.current = window.L.layerGroup().addTo(map)
+      map.addListener('click', (e: any) => {
+        if (clickHandlerRef.current) {
+          clickHandlerRef.current(e.latLng.lat(), e.latLng.lng())
+        }
+      })
 
       mapInstanceRef.current = map
     }
 
     const map = mapInstanceRef.current
-    const L = window.L
 
-    markersLayerRef.current.clearLayers()
-    zonesLayerRef.current.clearLayers()
+    // Clear existing markers and zones
+    markersRef.current.forEach((m) => m.setMap(null))
+    markersRef.current = []
 
-    zones.forEach((zone) => {
-      L.circle([zone.lat, zone.lng], {
-        color: '#ef4444',
-        fillColor: '#ef4444',
-        fillOpacity: 0.2,
-        radius: zone.radius,
-      })
-        .addTo(zonesLayerRef.current)
-        .bindTooltip(zone.name || 'Zona', { permanent: false })
-    })
+    zonesRef.current.forEach((z) => z.setMap(null))
+    zonesRef.current = []
 
-    markers.forEach((marker) => {
-      L.circleMarker([marker.lat, marker.lng], {
-        radius: 8,
-        color: '#fff',
-        weight: 2,
-        fillColor: marker.color || '#10B981',
-        fillOpacity: 1,
-      })
-        .addTo(markersLayerRef.current)
-        .bindTooltip(marker.label || '', { permanent: false })
-    })
-
-    if (route && route.length > 0) {
-      const latlngs = route.map((p) => [p.lat, p.lng])
-      L.polyline(latlngs, { color: '#0ea5e9', weight: 4, opacity: 0.8, dashArray: '8, 8' }).addTo(
-        markersLayerRef.current,
-      )
+    if (routeRef.current) {
+      routeRef.current.setMap(null)
+      routeRef.current = null
     }
 
-    if (markers.length > 0 || zones.length > 0 || (route && route.length > 0)) {
-      const group = L.featureGroup([markersLayerRef.current, zonesLayerRef.current])
-      if (group.getBounds().isValid()) {
-        map.fitBounds(group.getBounds(), { padding: [20, 20], maxZoom: 15 })
-      }
+    const bounds = new window.google.maps.LatLngBounds()
+    let hasBounds = false
+
+    // Draw Zones (Circles)
+    zones.forEach((zone) => {
+      const circle = new window.google.maps.Circle({
+        strokeColor: '#ef4444',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#ef4444',
+        fillOpacity: 0.2,
+        map,
+        center: { lat: zone.lat, lng: zone.lng },
+        radius: zone.radius,
+      })
+      zonesRef.current.push(circle)
+      bounds.extend({ lat: zone.lat, lng: zone.lng })
+      hasBounds = true
+    })
+
+    // Draw Markers
+    markers.forEach((marker) => {
+      const m = new window.google.maps.Marker({
+        position: { lat: marker.lat, lng: marker.lng },
+        map,
+        title: marker.label || '',
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          fillColor: marker.color || '#10B981',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+          scale: 8,
+        },
+      })
+      markersRef.current.push(m)
+      bounds.extend({ lat: marker.lat, lng: marker.lng })
+      hasBounds = true
+    })
+
+    // Draw Route
+    if (route && route.length > 0) {
+      const path = route.map((p) => ({ lat: p.lat, lng: p.lng }))
+      const polyline = new window.google.maps.Polyline({
+        path,
+        geodesic: true,
+        strokeColor: '#0ea5e9',
+        strokeOpacity: 0.8,
+        strokeWeight: 4,
+      })
+      polyline.setMap(map)
+      routeRef.current = polyline
+
+      path.forEach((p) => bounds.extend(p))
+      hasBounds = true
+    }
+
+    if (hasBounds) {
+      map.fitBounds(bounds)
+      const listener = window.google.maps.event.addListener(map, 'idle', () => {
+        if (map.getZoom() > 15) map.setZoom(15)
+        window.google.maps.event.removeListener(listener)
+      })
     }
   }, [loaded, markers, zones, route])
 
-  return (
-    <>
-      <style>{`
-        .leaflet-container { z-index: 10 !important; }
-        .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
-      `}</style>
-      <div ref={mapRef} className={className} style={{ width: '100%', height: '100%' }} />
-    </>
-  )
+  return <div ref={mapRef} className={className} style={{ width: '100%', height: '100%' }} />
 }

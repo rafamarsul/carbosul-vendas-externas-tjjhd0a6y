@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select'
 import { DateRangePicker } from '@/components/DateRangePicker'
 import { DateRange } from 'react-day-picker'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useData } from '@/contexts/DataContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -252,6 +253,97 @@ function SalesDashboard({ visits }: { visits: any[] }) {
   )
 }
 
+function ManagerMapSection({ visits, zones }: { visits: any[]; zones: any[] }) {
+  const [timeframe, setTimeframe] = useState<'daily' | 'fortnightly' | 'monthly'>('daily')
+
+  const mapVisits = useMemo(() => {
+    const now = new Date()
+    return visits.filter((v) => {
+      const vDate = new Date(v.timestamp || v.created)
+      const diffTime = Math.abs(now.getTime() - vDate.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+      if (timeframe === 'daily') return diffDays <= 1
+      if (timeframe === 'fortnightly') return diffDays <= 15
+      if (timeframe === 'monthly') return diffDays <= 30
+      return true
+    })
+  }, [visits, timeframe])
+
+  const mapMarkers = mapVisits.map((v, i) => ({
+    id: v.id,
+    lat: v.lat || -23.55 + i * 0.01,
+    lng: v.lng || -46.63 + i * 0.01,
+    color: v.priority ? '#EF4444' : '#004A99',
+    label: v.company,
+  }))
+
+  return (
+    <Card className="flex flex-col shadow-sm mt-6">
+      <CardHeader className="px-6 py-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-primary" /> Cobertura Geográfica
+        </CardTitle>
+        <Tabs
+          value={timeframe}
+          onValueChange={(v) => setTimeframe(v as any)}
+          className="w-full sm:w-auto"
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="daily">Diário</TabsTrigger>
+            <TabsTrigger value="fortnightly">Quinzenal</TabsTrigger>
+            <TabsTrigger value="monthly">Mensal</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 h-[600px]">
+          <div className="lg:col-span-2 relative border-r">
+            <MapMock
+              className="w-full h-full rounded-bl-xl lg:rounded-bl-none"
+              markers={mapMarkers}
+              zones={zones}
+            />
+          </div>
+          <div className="h-full overflow-y-auto bg-muted/10 p-4">
+            <h3 className="font-semibold mb-4 text-sm text-muted-foreground uppercase tracking-wider">
+              Visitas ({mapVisits.length})
+            </h3>
+            <div className="space-y-3">
+              {mapVisits.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm py-8">
+                  Nenhuma visita encontrada para este período.
+                </p>
+              ) : (
+                mapVisits.map((v) => (
+                  <div
+                    key={v.id}
+                    className="bg-background p-3 rounded-lg border shadow-sm text-sm flex flex-col gap-1"
+                  >
+                    <div className="font-semibold">{v.company}</div>
+                    <div className="text-muted-foreground text-xs flex items-start gap-1 mt-1">
+                      <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{v.address || 'Sem endereço'}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-muted/50">
+                      <span className="text-xs font-medium text-primary">
+                        {v.salesmanName || 'Vendedor'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(v.timestamp || v.created).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
   const [regionFilter, setRegionFilter] = useState('all')
   const [productFilter, setProductFilter] = useState('all')
@@ -289,6 +381,15 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
       .sort((a, b) => b.count - a.count)
   }, [filteredVisits])
 
+  const visitsForMap = useMemo(() => {
+    return visits.filter((v) => {
+      let keep = true
+      if (regionFilter !== 'all' && v.region !== regionFilter) keep = false
+      if (productFilter !== 'all' && !(v.products && v.products[productFilter])) keep = false
+      return keep
+    })
+  }, [visits, regionFilter, productFilter])
+
   const approvalData = useMemo(() => {
     const counts = { approved: 0, pending: 0, needs_review: 0 }
     filteredVisits.forEach((v) => {
@@ -324,14 +425,6 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
   }, [filteredVisits])
-
-  const mapMarkers = filteredVisits.map((v, i) => ({
-    id: v.id,
-    lat: v.lat || -23.55 + i * 0.01,
-    lng: v.lng || -46.63 + i * 0.01,
-    color: v.priority ? '#EF4444' : '#004A99',
-    label: v.company,
-  }))
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
@@ -545,14 +638,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
         </Card>
       </div>
 
-      <Card className="flex flex-col h-[550px] shadow-sm mt-6">
-        <CardHeader className="px-6 py-4 border-b">
-          <CardTitle className="text-lg">Mapa de Operações Globais</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 flex-1 relative">
-          <MapMock className="w-full h-full rounded-b-xl" markers={mapMarkers} zones={zones} />
-        </CardContent>
-      </Card>
+      <ManagerMapSection visits={visitsForMap} zones={zones} />
     </div>
   )
 }
