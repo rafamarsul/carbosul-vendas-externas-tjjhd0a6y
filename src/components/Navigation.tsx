@@ -1,16 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  Users,
-  MapPin,
-  Map,
-  LogOut,
-  CheckSquare,
-  History,
-  Target,
-  Shield,
-  CalendarDays,
-} from 'lucide-react'
+import { LayoutDashboard, MapPin, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -18,23 +7,10 @@ import { Button } from '@/components/ui/button'
 export function DesktopSidebar() {
   const { user, logout } = useAuth()
 
-  const navItems =
-    user?.role === 'manager'
-      ? [
-          { to: '/', label: 'Dashboard Global', icon: LayoutDashboard },
-          { to: '/gerenciamento', label: 'Gerenciamento', icon: Users },
-          { to: '/roteiros', label: 'Roteiros', icon: CalendarDays },
-          { to: '/revisoes', label: 'Todas as Visitas', icon: CheckSquare },
-          { to: '/mapa', label: 'Mapa', icon: Map },
-          { to: '/admin/reports', label: 'Relatórios', icon: Target },
-          { to: '/auditoria', label: 'Auditoria', icon: Shield },
-        ]
-      : [
-          { to: '/', label: 'Meu Dashboard', icon: LayoutDashboard },
-          { to: '/historico', label: 'Minhas Visitas', icon: History },
-          { to: '/visitas', label: 'Registrar Visita', icon: MapPin },
-          { to: '/mapa', label: 'Mapa / Zonas', icon: Map },
-        ]
+  const navItems = [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/nova-visita', label: 'Nova Visita', icon: MapPin },
+  ]
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r bg-card h-screen sticky top-0 z-20">
@@ -92,20 +68,10 @@ export function DesktopSidebar() {
 export function MobileBottomNav() {
   const { user } = useAuth()
 
-  const navItems =
-    user?.role === 'manager'
-      ? [
-          { to: '/', label: 'Dash', icon: LayoutDashboard },
-          { to: '/admin/reports', label: 'Relatórios', icon: Target },
-          { to: '/roteiros', label: 'Roteiros', icon: CalendarDays },
-          { to: '/gerenciamento', label: 'Gestão', icon: Users },
-        ]
-      : [
-          { to: '/', label: 'Dash', icon: LayoutDashboard },
-          { to: '/historico', label: 'Minhas', icon: History },
-          { to: '/visitas', label: 'Visitar', icon: MapPin },
-          { to: '/mapa', label: 'Mapa', icon: Map },
-        ]
+  const navItems = [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/nova-visita', label: 'Nova Visita', icon: MapPin },
+  ]
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">

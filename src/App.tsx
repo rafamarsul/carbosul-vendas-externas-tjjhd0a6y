@@ -7,17 +7,7 @@ import { DataProvider } from './contexts/DataContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Index from './pages/Index'
-import Team from './pages/Team'
 import Visits from './pages/Visits'
-import History from './pages/History'
-import Reviews from './pages/Reviews'
-import Reports from './pages/Reports'
-import AdminReports from './pages/AdminReports'
-import Zones from './pages/Zones'
-import Management from './pages/Management'
-import Schedules from './pages/Schedules'
-import MapPage from './pages/MapPage'
-import AuditLogs from './pages/AuditLogs'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -33,21 +23,7 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
-                <Route path="/historico" element={<History />} />
-                <Route path="/mapa" element={<MapPage />} />
-
-                <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
-                  <Route path="/gerenciamento" element={<Management />} />
-                  <Route path="/roteiros" element={<Schedules />} />
-                  <Route path="/relatorios" element={<Reports />} />
-                  <Route path="/admin/reports" element={<AdminReports />} />
-                  <Route path="/revisoes" element={<Reviews />} />
-                  <Route path="/auditoria" element={<AuditLogs />} />
-                </Route>
-
-                <Route element={<ProtectedRoute allowedRoles={['sales']} />}>
-                  <Route path="/visitas" element={<Visits />} />
-                </Route>
+                <Route path="/nova-visita" element={<Visits />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
