@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MapMock } from '@/components/MapMock'
+import pb from '@/lib/pocketbase/client'
 import {
   Activity,
   Target,
@@ -28,7 +29,6 @@ import { toast } from 'sonner'
 import { useData } from '@/contexts/DataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Badge } from '@/components/ui/badge'
-import { useEffect } from 'react'
 import { getMySchedules } from '@/services/schedules'
 import { getCycleInfo } from '@/lib/cycle'
 import { Progress } from '@/components/ui/progress'
@@ -130,6 +130,19 @@ function SalesDashboard({ visits }: { visits: any[] }) {
             >
               <MapPin className="mr-2 h-4 w-4" /> Ver no Mapa
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!todaySchedule && (
+        <Card className="bg-muted/30 border-dashed">
+          <CardContent className="p-8 text-center flex flex-col items-center">
+            <Clock className="w-10 h-10 text-muted-foreground mb-3 opacity-50" />
+            <h3 className="text-lg font-medium text-foreground mb-1">Nenhuma Rota Hoje</h3>
+            <p className="text-muted-foreground text-sm">
+              Você não possui uma zona de prioridade agendada para hoje. Aproveite para prospectar
+              livremente ou revise pendências.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -248,7 +261,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
     return visits.filter((v) => {
       let keep = true
       if (regionFilter !== 'all' && v.region !== regionFilter) keep = false
-      if (productFilter !== 'all' && !v.products[productFilter]) keep = false
+      if (productFilter !== 'all' && !(v.products && v.products[productFilter])) keep = false
       if (dateFilter?.from) {
         const vDate = new Date(v.timestamp || v.created)
         if (vDate < dateFilter.from) keep = false
@@ -260,6 +273,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
 
   const totalVisits = filteredVisits.length
   const estVolume = filteredVisits.reduce((acc, v) => {
+    if (!v.products) return acc
     if (productFilter !== 'all') return acc + (v.products[productFilter] || 0)
     return acc + Object.values(v.products).reduce((sum, val) => sum + (Number(val) || 0), 0)
   }, 0)
@@ -433,6 +447,19 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
         </Card>
       </div>
 
+      {visits.length === 0 && (
+        <Card className="bg-muted/30 border-dashed">
+          <CardContent className="p-12 text-center">
+            <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Nenhuma visita registrada</h3>
+            <p className="text-muted-foreground">
+              Os dados de visitas e performance aparecerão aqui assim que a equipe começar a
+              registrar as atividades em campo.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-sm">
           <CardHeader className="border-b">
@@ -530,21 +557,70 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
   )
 }
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Dashboard Error:', error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback
+    }
+    return this.props.children
+  }
+}
+
 export default function Index() {
   const { user } = useAuth()
   const { visits, zones, loading } = useData()
 
+  useEffect(() => {
+    if (user?.id) {
+      pb.collection('audit_logs')
+        .create({
+          user: user.id,
+          action: 'Dashboard Viewed',
+        })
+        .catch(() => {})
+    }
+  }, [user?.id])
+
   if (loading) {
     return (
-      <div className="p-8 flex justify-center items-center h-full">
+      <div className="p-8 flex justify-center items-center h-full min-h-[50vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     )
   }
 
-  return user?.role === 'sales' ? (
-    <SalesDashboard visits={visits} />
-  ) : (
-    <ManagerDashboard visits={visits} zones={zones} />
+  const fallback = (
+    <div className="p-8 text-center max-w-md mx-auto mt-10">
+      <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
+      <h2 className="text-xl font-bold mb-2">Erro ao carregar o dashboard</h2>
+      <p className="text-muted-foreground mb-4">
+        Ocorreu um erro inesperado ao tentar exibir as informações. Por favor, recarregue a página
+        ou contate o suporte se o problema persistir.
+      </p>
+      <Button onClick={() => window.location.reload()}>Recarregar</Button>
+    </div>
+  )
+
+  return (
+    <ErrorBoundary fallback={fallback}>
+      {user?.role === 'sales' ? (
+        <SalesDashboard visits={visits || []} />
+      ) : (
+        <ManagerDashboard visits={visits || []} zones={zones || []} />
+      )}
+    </ErrorBoundary>
   )
 }

@@ -80,6 +80,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null }
     } catch (error) {
+      try {
+        await pb.send('/backend/v1/log-failed-login', {
+          method: 'POST',
+          body: JSON.stringify({ email }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch {
+        /* intentionally ignored */
+      }
       return { error }
     }
   }
