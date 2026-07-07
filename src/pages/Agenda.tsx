@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { MapPin, Plus, Trash2, Calendar, AlertCircle } from 'lucide-react'
+import { MapPin, Plus, Trash2, Calendar, AlertCircle, ClipboardList } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +26,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import { getDayLabel } from '@/lib/cycle'
+import { QuickVisitForm } from '@/components/QuickVisitForm'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -176,6 +177,9 @@ export default function Agenda() {
           )}
           <TabsTrigger value="schedules">
             <Calendar className="w-4 h-4 mr-1" /> Escalas
+          </TabsTrigger>
+          <TabsTrigger value="visits">
+            <ClipboardList className="w-4 h-4 mr-1" /> Visitas
           </TabsTrigger>
         </TabsList>
         {isManager && (
@@ -486,6 +490,33 @@ export default function Agenda() {
                     Nenhum agendamento.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        <TabsContent value="visits" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Nova Visita</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <QuickVisitForm />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Validação de Território</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  Ao registrar uma visita, o sistema valida automaticamente se a região informada
+                  está dentro da sua área de cobertura.
+                </p>
+                <p>
+                  Se a região não corresponder às suas zonas atribuídas, a visita será bloqueada com
+                  uma mensagem indicando as regiões permitidas.
+                </p>
               </CardContent>
             </Card>
           </div>

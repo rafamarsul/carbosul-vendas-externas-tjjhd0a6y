@@ -1,8 +1,60 @@
 onRecordCreate((e) => {
   const visit = e.record
+  const userId = visit.getString('user_id')
+
+  // Territory validation — sales role only
+  if (userId) {
+    let userRecord = null
+    try {
+      userRecord = $app.findRecordById('users', userId)
+    } catch (err) {}
+
+    if (userRecord) {
+      const role = userRecord.getString('role')
+      if (role !== 'manager') {
+        let userZones = []
+        try {
+          userZones = $app.findRecordsByFilter('zones', `user_id = '${userId}'`, '-created', 100, 0)
+        } catch (err) {}
+
+        if (userZones.length > 0) {
+          const visitRegion = visit.getString('region')
+          if (visitRegion) {
+            const cityNames = []
+            const zoneNames = []
+            for (const zone of userZones) {
+              const zoneName = zone.getString('name')
+              zoneNames.push(zoneName)
+              const dashIndex = zoneName.indexOf(' - ')
+              const cityName = dashIndex > 0 ? zoneName.substring(0, dashIndex) : zoneName
+              cityNames.push(cityName.toLowerCase())
+            }
+
+            const regionLower = visitRegion.toLowerCase()
+            let matched = false
+            for (const city of cityNames) {
+              if (regionLower.includes(city)) {
+                matched = true
+                break
+              }
+            }
+
+            if (!matched) {
+              throw new BadRequestError(
+                'A região "' +
+                  visitRegion +
+                  '" não está na sua área de cobertura. Suas regiões: ' +
+                  zoneNames.join(', '),
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+
   const lat = visit.getFloat('lat')
   const lng = visit.getFloat('lng')
-  const userId = visit.getString('user_id')
 
   if (!lat || !lng || !userId) {
     return e.next()
