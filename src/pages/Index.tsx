@@ -50,7 +50,7 @@ const PRODUCTS_LIST = [
   'Seixo Rolado',
 ]
 
-function SalesDashboard({ visits }: { visits: any[] }) {
+function SalesDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
   const { user } = useAuth()
   const [todaySchedule, setTodaySchedule] = useState<any>(null)
 
@@ -82,6 +82,34 @@ function SalesDashboard({ visits }: { visits: any[] }) {
   ).length
   const goal = 50
   const progress = Math.min(100, Math.round((visits.length / goal) * 100))
+
+  const salesZones = useMemo(() => zones.filter((z) => z.userId === user?.id), [zones, user?.id])
+  const salesMapMarkers = useMemo(
+    () =>
+      visits.map((v, i) => ({
+        id: v.id,
+        lat: v.lat || -27.5954 + i * 0.01,
+        lng: v.lng || -48.548 + i * 0.01,
+        status: v.status,
+        label: v.company,
+        salesmanName: v.salesmanName,
+        contact: v.contact,
+        scheduledTime: v.timestamp
+          ? new Date(v.timestamp).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : undefined,
+      })),
+    [visits],
+  )
+  const salesRoute = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0]
+    return visits
+      .filter((v) => v.lat && v.lng && v.timestamp && v.timestamp.startsWith(todayStr))
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .map((v) => ({ lat: v.lat!, lng: v.lng! }))
+  }, [visits])
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
@@ -191,6 +219,24 @@ function SalesDashboard({ visits }: { visits: any[] }) {
         </Card>
       </div>
 
+      <Card className="h-[400px] flex flex-col shadow-sm">
+        <CardHeader className="px-6 py-4 border-b">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary" /> Minhas Visitas no Mapa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 flex-1">
+          <MapMock
+            className="w-full h-full rounded-b-xl"
+            markers={salesMapMarkers}
+            zones={salesZones}
+            route={salesRoute}
+            title="Minha Rota"
+            dateLabel={new Date().toLocaleDateString('pt-BR')}
+          />
+        </CardContent>
+      </Card>
+
       <MyTerritories />
 
       <Card className="h-[450px] flex flex-col shadow-sm">
@@ -277,12 +323,27 @@ function ManagerMapSection({ visits, zones }: { visits: any[]; zones: any[] }) {
 
   const mapMarkers = mapVisits.map((v, i) => ({
     id: v.id,
-    lat: v.lat || -23.55 + i * 0.01,
-    lng: v.lng || -46.63 + i * 0.01,
-    color: v.priority ? '#EF4444' : '#004A99',
+    lat: v.lat || -27.5954 + i * 0.01,
+    lng: v.lng || -48.548 + i * 0.01,
+    status: v.status,
     label: v.company,
     salesmanName: v.salesmanName,
+    contact: v.contact,
+    scheduledTime: v.timestamp
+      ? new Date(v.timestamp).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : undefined,
   }))
+
+  const mapRoute = mapVisits
+    .filter((v) => v.lat && v.lng)
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp || a.created).getTime() - new Date(b.timestamp || b.created).getTime(),
+    )
+    .map((v) => ({ lat: v.lat, lng: v.lng }))
 
   return (
     <Card className="flex flex-col shadow-sm mt-6">
@@ -309,6 +370,13 @@ function ManagerMapSection({ visits, zones }: { visits: any[]; zones: any[] }) {
               className="w-full h-full rounded-bl-xl lg:rounded-bl-none"
               markers={mapMarkers}
               zones={zones}
+              route={mapRoute}
+              title="Cobertura Geográfica"
+              dateLabel={new Date().toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+              })}
             />
           </div>
           <div className="h-full overflow-y-auto bg-muted/10 p-4">
@@ -888,7 +956,7 @@ export default function Index() {
   return (
     <ErrorBoundary fallback={fallback}>
       {user?.role === 'sales' ? (
-        <SalesDashboard visits={visits || []} />
+        <SalesDashboard visits={visits || []} zones={zones || []} />
       ) : (
         <ManagerDashboard visits={visits || []} zones={zones || []} />
       )}
