@@ -19,7 +19,7 @@ export const getZones = () =>
 export const getZonesByUserId = (userId: string) =>
   pb.collection('zones').getFullList({
     filter: `user_id = "${userId}"`,
-    sort: '-created',
+    sort: 'name',
   }) as Promise<Zone[]>
 export const createZone = (data: any) => pb.collection('zones').create(data)
 export const updateZone = (id: string, data: any) => pb.collection('zones').update(id, data)

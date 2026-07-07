@@ -16,18 +16,26 @@ import { createVisit } from '@/services/visits'
 import { useAuth } from '@/contexts/AuthContext'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { STATE_OPTIONS } from '@/services/coverage-areas'
+import type { Zone } from '@/services/zones'
 import { toast } from 'sonner'
 
 const LEAD_STATUS_OPTIONS = ['Qualificado', 'Não Qualificado', 'Em Análise']
 const VISIT_STATUS_OPTIONS = ['Pendente', 'Em Andamento', 'Concluída']
 
-export function QuickVisitForm() {
+interface QuickVisitFormProps {
+  zones: Zone[]
+  selectedUserId?: string
+  selectedUserName?: string
+}
+
+export function QuickVisitForm({ zones, selectedUserId, selectedUserName }: QuickVisitFormProps) {
   const { user } = useAuth()
   const [form, setForm] = useState({
     company: '',
     contact: '',
     phone: '',
     address: '',
+    zoneId: '',
     region: '',
     reason: '',
     state: 'SC',
@@ -37,16 +45,36 @@ export function QuickVisitForm() {
     lng: 0,
   })
 
+  const sortedZones = [...zones].sort((a, b) => a.name.localeCompare(b.name))
+
+  const handleZoneChange = (zoneId: string) => {
+    const zone = sortedZones.find((z) => z.id === zoneId)
+    setForm((p) => ({
+      ...p,
+      zoneId,
+      region: zone?.name || '',
+      state: zone?.state || p.state,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.company || !form.region) {
-      toast.error('Preencha empresa e região')
+    if (!form.company) {
+      toast.error('Preencha o nome da empresa')
+      return
+    }
+    if (!form.zoneId) {
+      toast.error(
+        sortedZones.length === 0
+          ? 'Nenhuma zona disponível para este vendedor'
+          : 'Selecione uma zona',
+      )
       return
     }
     try {
       await createVisit({
-        user_id: user?.id || '',
-        salesman_name: user?.name || '',
+        user_id: selectedUserId || user?.id || '',
+        salesman_name: selectedUserName || user?.name || '',
         company: form.company,
         contact: form.contact,
         phone: form.phone,
@@ -65,6 +93,7 @@ export function QuickVisitForm() {
         contact: '',
         phone: '',
         address: '',
+        zoneId: '',
         region: '',
         reason: '',
         state: 'SC',
@@ -157,19 +186,34 @@ export function QuickVisitForm() {
         </div>
       </div>
       <div className="space-y-1">
+        <Label>Zona / Região</Label>
+        <Select value={form.zoneId} onValueChange={handleZoneChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione uma zona" />
+          </SelectTrigger>
+          <SelectContent>
+            {sortedZones.length === 0 ? (
+              <SelectItem value="none" disabled>
+                Nenhuma zona disponível para este vendedor
+              </SelectItem>
+            ) : (
+              sortedZones.map((z) => (
+                <SelectItem key={z.id} value={z.id}>
+                  {z.name}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        {sortedZones.length === 0 && (
+          <p className="text-xs text-destructive">Nenhuma zona disponível para este vendedor</p>
+        )}
+      </div>
+      <div className="space-y-1">
         <Label>Endereço</Label>
         <Input
           value={form.address}
           onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label>Região / Cidade</Label>
-        <Input
-          value={form.region}
-          onChange={(e) => setForm((p) => ({ ...p, region: e.target.value }))}
-          required
-          placeholder="Ex: São José"
         />
       </div>
       <div className="space-y-1">

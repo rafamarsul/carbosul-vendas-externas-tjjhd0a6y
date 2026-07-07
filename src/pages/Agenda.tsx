@@ -1,5 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
-import { MapPin, Plus, Trash2, Calendar, AlertCircle, ClipboardList, BarChart3 } from 'lucide-react'
+import {
+  MapPin,
+  Plus,
+  Trash2,
+  Calendar,
+  AlertCircle,
+  ClipboardList,
+  BarChart3,
+  Users,
+} from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +24,7 @@ import {
 } from '@/components/ui/select'
 import { GoogleMap } from '@/components/GoogleMap'
 import { useRealtime } from '@/hooks/use-realtime'
-import { getZones, createZone, deleteZone, type Zone } from '@/services/zones'
+import { getZones, getZonesByUserId, createZone, deleteZone, type Zone } from '@/services/zones'
 import { getSchedules, createSchedule, deleteSchedule } from '@/services/schedules'
 import { getUsers } from '@/services/users'
 import {
@@ -39,6 +48,8 @@ export default function Agenda() {
   const [schedules, setSchedules] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [coverageAreas, setCoverageAreas] = useState<any[]>([])
+  const [selectedSalesperson, setSelectedSalesperson] = useState<string>('')
+  const [filteredZones, setFilteredZones] = useState<Zone[]>([])
   const [zoneForm, setZoneForm] = useState({
     name: '',
     cep: '',
@@ -49,7 +60,6 @@ export default function Agenda() {
     region: 'Grande Florianópolis' as string,
   })
   const [schedForm, setSchedForm] = useState({
-    user_id: '',
     week_number: 1,
     day_of_week: 'Monday',
     zone_id: '',
@@ -80,25 +90,40 @@ export default function Agenda() {
 
   useEffect(() => {
     fetchAll()
-    if (!isManager && user?.id) {
-      setSchedForm((p) => ({ ...p, user_id: user.id }))
-      fetchCoverage(user.id)
-    }
-  }, [user?.id])
+  }, [])
 
   useEffect(() => {
-    if (isManager && schedForm.user_id) fetchCoverage(schedForm.user_id)
-  }, [schedForm.user_id])
+    if (!isManager && user?.id) {
+      setSelectedSalesperson(user.id)
+      fetchCoverage(user.id)
+    }
+  }, [user?.id, isManager])
+
+  useEffect(() => {
+    if (selectedSalesperson) {
+      getZonesByUserId(selectedSalesperson).then(setFilteredZones).catch(console.error)
+      if (isManager) fetchCoverage(selectedSalesperson)
+    } else {
+      setFilteredZones([])
+      setCoverageAreas([])
+    }
+  }, [selectedSalesperson])
+
+  useEffect(() => {
+    setSchedForm((p) => ({ ...p, zone_id: '' }))
+  }, [selectedSalesperson])
 
   useRealtime('zones', () => fetchAll())
   useRealtime('schedules', () => fetchAll())
 
-  const salesZones = useMemo(() => {
-    if (!user?.id) return []
-    return zones.filter((z) => z.user_id === user.id)
-  }, [zones, user?.id])
+  const salesUsers = useMemo(() => users.filter((u) => u.role === 'sales'), [users])
 
-  const zoneOptions = isManager ? zones : salesZones
+  const zoneOptions = useMemo(() => {
+    const options = selectedSalesperson ? filteredZones : zones
+    return [...options].sort((a, b) => a.name.localeCompare(b.name))
+  }, [selectedSalesperson, filteredZones, zones])
+
+  const selectedUser = users.find((u) => u.id === selectedSalesperson)
 
   const handleCreateZone = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -133,29 +158,28 @@ export default function Agenda() {
 
   const handleCreateSchedule = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!schedForm.user_id || !schedForm.zone_id) {
-      toast.error('Selecione vendedor e zona')
+    if (!selectedSalesperson || !schedForm.zone_id) {
+      toast.error('Selecione um vendedor e uma zona')
       return
     }
-    const selectedZone = zones.find((z) => z.id === schedForm.zone_id)
-    if (selectedZone) {
+    const selectedZone = zoneOptions.find((z) => z.id === schedForm.zone_id)
+    if (selectedZone && !isManager) {
       const inCoverage = coverageAreas.some(
         (a) => a.state === selectedZone.state && a.region === selectedZone.region,
       )
-      if (!inCoverage && !isManager) {
+      if (!inCoverage) {
         toast.error('Esta zona não pertence à sua área de cobertura atribuída.')
         return
       }
     }
     try {
-      await createSchedule({ ...schedForm, week_number: Number(schedForm.week_number) })
-      toast.success('Agendamento criado!')
-      setSchedForm({
-        user_id: isManager ? '' : user?.id || '',
-        week_number: 1,
-        day_of_week: 'Monday',
-        zone_id: '',
+      await createSchedule({
+        ...schedForm,
+        user_id: selectedSalesperson,
+        week_number: Number(schedForm.week_number),
       })
+      toast.success('Agendamento criado!')
+      setSchedForm({ week_number: 1, day_of_week: 'Monday', zone_id: '' })
     } catch {
       toast.error('Erro ao criar agendamento')
     }
@@ -167,6 +191,34 @@ export default function Agenda() {
         <h1 className="text-2xl font-bold tracking-tight text-primary">Agenda & Rotas</h1>
         <p className="text-muted-foreground text-sm">Gerencie zonas e escalas da equipe.</p>
       </div>
+
+      {isManager && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <Users className="w-5 h-5 text-muted-foreground shrink-0" />
+              <Label className="whitespace-nowrap">Filtrar por Vendedor:</Label>
+              <Select
+                value={selectedSalesperson || 'all'}
+                onValueChange={(v) => setSelectedSalesperson(v === 'all' ? '' : v)}
+              >
+                <SelectTrigger className="w-full max-w-xs">
+                  <SelectValue placeholder="Todos os Vendedores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Vendedores</SelectItem>
+                  {salesUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="performance">
         <TabsList>
           <TabsTrigger value="performance">
@@ -184,9 +236,11 @@ export default function Agenda() {
             <ClipboardList className="w-4 h-4 mr-1" /> Visitas
           </TabsTrigger>
         </TabsList>
+
         <TabsContent value="performance" className="space-y-4">
           <PerformanceSummary />
         </TabsContent>
+
         {isManager && (
           <TabsContent value="zones" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -346,8 +400,9 @@ export default function Agenda() {
             </div>
           </TabsContent>
         )}
+
         <TabsContent value="schedules" className="space-y-4">
-          {!isManager && salesZones.length === 0 && (
+          {!isManager && filteredZones.length === 0 && (
             <Alert>
               <AlertCircle className="w-4 h-4" />
               <AlertDescription>
@@ -356,7 +411,7 @@ export default function Agenda() {
               </AlertDescription>
             </Alert>
           )}
-          {!isManager && salesZones.length > 0 && coverageAreas.length === 0 && (
+          {!isManager && filteredZones.length > 0 && coverageAreas.length === 0 && (
             <Alert>
               <AlertCircle className="w-4 h-4" />
               <AlertDescription>
@@ -372,30 +427,18 @@ export default function Agenda() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleCreateSchedule} className="space-y-3">
-                  {isManager && (
-                    <div className="space-y-1">
-                      <Label>Vendedor</Label>
-                      <Select
-                        value={schedForm.user_id}
-                        onValueChange={(v) =>
-                          setSchedForm((p) => ({ ...p, user_id: v, zone_id: '' }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users
-                            .filter((u) => u.role === 'sales')
-                            .map((u) => (
-                              <SelectItem key={u.id} value={u.id}>
-                                {u.name || u.email}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  <div className="space-y-1">
+                    <Label>Vendedor</Label>
+                    {selectedSalesperson ? (
+                      <div className="px-3 py-2 border rounded-md bg-muted/50 text-sm">
+                        {selectedUser?.name || selectedUser?.email || '—'}
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2 border rounded-md bg-muted/30 text-sm text-muted-foreground">
+                        Selecione um vendedor no filtro acima
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Semana</Label>
@@ -435,10 +478,7 @@ export default function Agenda() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label>
-                      Zona
-                      {isManager && schedForm.user_id ? ` (${zones.length} disponíveis)` : ''}
-                    </Label>
+                    <Label>Zona</Label>
                     <Select
                       value={schedForm.zone_id}
                       onValueChange={(v) => setSchedForm((p) => ({ ...p, zone_id: v }))}
@@ -447,25 +487,30 @@ export default function Agenda() {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {zoneOptions.map((z) => (
-                          <SelectItem key={z.id} value={z.id}>
-                            {z.name} - {z.state || '—'}
+                        {zoneOptions.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            Nenhuma zona disponível para este vendedor
                           </SelectItem>
-                        ))}
+                        ) : (
+                          zoneOptions.map((z) => (
+                            <SelectItem key={z.id} value={z.id}>
+                              {z.name} - {z.state || '—'}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
+                    {zoneOptions.length === 0 && selectedSalesperson && (
+                      <p className="text-xs text-destructive">
+                        Nenhuma zona disponível para este vendedor
+                      </p>
+                    )}
+                    {zoneOptions.length === 0 && !selectedSalesperson && (
+                      <p className="text-xs text-muted-foreground">
+                        Selecione um vendedor no filtro acima para ver as zonas disponíveis
+                      </p>
+                    )}
                   </div>
-                  {!isManager && zoneOptions.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Nenhum território atribuído a você. Solicite ao seu gerente que atribua zonas
-                      ao seu usuário.
-                    </p>
-                  )}
-                  {isManager && schedForm.user_id && zoneOptions.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Nenhuma zona cadastrada no sistema.
-                    </p>
-                  )}
                   <Button type="submit" className="w-full">
                     <Plus className="w-4 h-4 mr-2" /> Criar Agendamento
                   </Button>
@@ -514,6 +559,7 @@ export default function Agenda() {
             </Card>
           </div>
         </TabsContent>
+
         <TabsContent value="visits" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
@@ -521,7 +567,11 @@ export default function Agenda() {
                 <CardTitle>Nova Visita</CardTitle>
               </CardHeader>
               <CardContent>
-                <QuickVisitForm />
+                <QuickVisitForm
+                  zones={zoneOptions}
+                  selectedUserId={selectedSalesperson || undefined}
+                  selectedUserName={selectedUser?.name || selectedUser?.email}
+                />
               </CardContent>
             </Card>
             <Card>
