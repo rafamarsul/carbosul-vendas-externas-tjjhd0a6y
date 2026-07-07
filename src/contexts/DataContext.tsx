@@ -12,6 +12,7 @@ export interface Visit {
   phone: string
   address: string
   region: string
+  state?: string
   reason: string
   interest: string
   products: Record<string, number>
@@ -90,6 +91,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           phone: v.phone,
           address: v.address,
           region: v.region,
+          state: v.state,
           reason: v.reason,
           interest: v.interest,
           products: v.products as Record<string, number>,
@@ -150,6 +152,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         phone: visit.phone,
         address: visit.address,
         region: visit.region,
+        state: visit.state,
         reason: visit.reason,
         interest: visit.interest,
         products: visit.products,

@@ -10,8 +10,8 @@ export default function Layout() {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'sales'] },
     { path: '/nova-visita', label: 'Nova Visita', icon: MapPin, roles: ['sales', 'manager'] },
+    { path: '/agenda', label: 'Agenda', icon: Calendar, roles: ['manager', 'sales'] },
     { path: '/equipe', label: 'Equipe', icon: Users, roles: ['manager'] },
-    { path: '/agenda', label: 'Agenda', icon: Calendar, roles: ['manager'] },
   ]
 
   const allowedNav = navItems.filter((item) => item.roles.includes(user?.role || 'sales'))

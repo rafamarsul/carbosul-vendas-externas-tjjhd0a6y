@@ -44,6 +44,34 @@ export const getMyCoverageAreas = (userId: string) =>
     sort: '-created',
   }) as Promise<CoverageArea[]>
 
+export const getActiveCoverageAreasByUser = (userId: string) =>
+  pb.collection('coverage_areas').getFullList({
+    filter: `user_id = '${userId}' && active = true`,
+    sort: '-created',
+  }) as Promise<CoverageArea[]>
+
+export const bulkCreateCoverageAreas = async (
+  userId: string,
+  items: Array<{ city: string; state: string; region: string }>,
+) => {
+  const results = []
+  for (const item of items) {
+    try {
+      const record = await pb.collection('coverage_areas').create({
+        user_id: userId,
+        city: item.city,
+        state: item.state,
+        region: item.region,
+        active: true,
+      })
+      results.push(record)
+    } catch (e) {
+      console.error('Failed to create coverage area:', e)
+    }
+  }
+  return results
+}
+
 export const createCoverageArea = (data: CoverageAreaForm) =>
   pb.collection('coverage_areas').create(data)
 

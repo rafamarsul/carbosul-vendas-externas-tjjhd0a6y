@@ -37,6 +37,7 @@ import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts'
 import { MyTerritories } from '@/components/MyTerritories'
+import { STATE_OPTIONS, REGION_OPTIONS } from '@/services/coverage-areas'
 
 const PRODUCTS_LIST = [
   'Carvão Ativado Granulado',
@@ -350,6 +351,7 @@ function ManagerMapSection({ visits, zones }: { visits: any[]; zones: any[] }) {
 }
 
 function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
+  const [stateFilter, setStateFilter] = useState('all')
   const [regionFilter, setRegionFilter] = useState('all')
   const [productFilter, setProductFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>()
@@ -374,6 +376,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
     return visits.filter((v) => {
       let keep = true
       if (salesmanFilter !== 'all' && v.salesmanId !== salesmanFilter) keep = false
+      if (stateFilter !== 'all' && v.state !== stateFilter) keep = false
       if (regionFilter !== 'all' && v.region !== regionFilter) keep = false
       if (productFilter !== 'all' && !(v.products && v.products[productFilter])) keep = false
       if (dateFilter?.from) {
@@ -407,11 +410,29 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
     return visits.filter((v) => {
       let keep = true
       if (salesmanFilter !== 'all' && v.salesmanId !== salesmanFilter) keep = false
+      if (stateFilter !== 'all' && v.state !== stateFilter) keep = false
       if (regionFilter !== 'all' && v.region !== regionFilter) keep = false
       if (productFilter !== 'all' && !(v.products && v.products[productFilter])) keep = false
       return keep
     })
   }, [visits, salesmanFilter, regionFilter, productFilter])
+
+  const regionalComparison = useMemo(() => {
+    const scVisits = visits.filter((v) => v.state === 'SC')
+    const rsVisits = visits.filter((v) => v.state === 'RS')
+    return [
+      {
+        state: 'SC',
+        total: scVisits.length,
+        qualified: scVisits.filter((v) => v.approvalStatus === 'approved').length,
+      },
+      {
+        state: 'RS',
+        total: rsVisits.length,
+        qualified: rsVisits.filter((v) => v.approvalStatus === 'approved').length,
+      },
+    ]
+  }, [visits])
 
   const approvalData = useMemo(() => {
     const counts = { approved: 0, pending: 0, needs_review: 0 }
@@ -485,17 +506,33 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full md:w-48">
+          <div className="w-full md:w-32">
+            <Select value={stateFilter} onValueChange={setStateFilter}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {STATE_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full md:w-52">
             <Select value={regionFilter} onValueChange={setRegionFilter}>
               <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Região" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as Regiões</SelectItem>
-                <SelectItem value="Sul">Sul</SelectItem>
-                <SelectItem value="Norte">Norte</SelectItem>
-                <SelectItem value="Leste">Leste</SelectItem>
-                <SelectItem value="Oeste">Oeste</SelectItem>
+                {REGION_OPTIONS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -521,6 +558,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
             variant="ghost"
             onClick={() => {
               setSalesmanFilter('all')
+              setStateFilter('all')
               setRegionFilter('all')
               setProductFilter('all')
               setDateFilter(undefined)
@@ -532,7 +570,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
@@ -579,7 +617,72 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
             </div>
           </CardContent>
         </Card>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Taxa de Qualificação</p>
+              <h3 className="text-3xl font-bold text-foreground mt-1">
+                {totalVisits > 0
+                  ? Math.round(
+                      ((approvalData.find((d) => d.name === 'Aprovadas')?.value || 0) /
+                        totalVisits) *
+                        100,
+                    )
+                  : 0}
+                %
+              </h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center text-green-600">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Follow-ups Pendentes</p>
+              <h3 className="text-3xl font-bold text-foreground mt-1">
+                {approvalData.find((d) => d.name === 'Pendentes')?.value || 0}
+              </h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-600">
+              <Clock className="w-6 h-6" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card className="shadow-sm">
+        <CardHeader className="border-b">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" /> Comparativo Regional
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-2 gap-6">
+            {regionalComparison.map((r) => (
+              <div key={r.state} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-base">
+                    {r.state === 'SC' ? 'Santa Catarina' : 'Rio Grande do Sul'}
+                  </span>
+                  <Badge variant="outline">{r.state}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Total Visitas</p>
+                    <p className="text-2xl font-bold">{r.total}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Leads Qualificados</p>
+                    <p className="text-2xl font-bold text-green-600">{r.qualified}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {visits.length === 0 && (
         <Card className="bg-muted/30 border-dashed">
@@ -606,7 +709,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
               {allSchedules.map((s) => {
                 const salesUser = teamUsers.find((u) => u.id === s.user_id)
                 const zoneName = s.expand?.zone_id?.name || '—'
-                const todayCount = visits.filter(
+                const todayCount = filteredVisits.filter(
                   (v) =>
                     v.salesmanId === s.user_id &&
                     new Date(v.timestamp || v.created).toDateString() === new Date().toDateString(),

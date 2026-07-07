@@ -29,9 +29,9 @@ const App = () => (
                 <Route path="/nova-visita" element={<Visits />} />
                 <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
                   <Route path="/equipe" element={<TeamManagement />} />
-                  <Route path="/agenda" element={<Agenda />} />
                   <Route path="/cobertura" element={<CoverageAreas />} />
                 </Route>
+                <Route path="/agenda" element={<Agenda />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

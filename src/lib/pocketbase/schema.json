@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T17:52:44.460Z",
+  "generatedAt": "2026-07-07T18:07:28.949Z",
   "collections": [
     {
       "name": "users",
@@ -225,6 +225,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "state",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SC", "RS"]
         }
       ],
       "indexes": []
@@ -290,6 +297,29 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "state",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["SC", "RS"]
+        },
+        {
+          "name": "region",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Grande Florianópolis",
+            "Vale do Itajaí",
+            "Litoral Norte",
+            "Sul",
+            "Missões",
+            "Planalto",
+            "Capital",
+            "Grande POA"
+          ]
         }
       ],
       "indexes": []
@@ -300,8 +330,8 @@
       "apiRules": {
         "list": "@request.auth.role = 'manager' || user_id = @request.auth.id",
         "view": "@request.auth.role = 'manager' || user_id = @request.auth.id",
-        "create": "@request.auth.role = 'manager'",
-        "update": "@request.auth.role = 'manager'",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.role = 'manager' || user_id = @request.auth.id",
         "delete": "@request.auth.role = 'manager'"
       },
       "fields": [
@@ -433,7 +463,9 @@
       ],
       "indexes": [
         "CREATE INDEX idx_coverage_areas_user_id ON coverage_areas (user_id)",
-        "CREATE INDEX idx_coverage_areas_state ON coverage_areas (state)"
+        "CREATE INDEX idx_coverage_areas_state ON coverage_areas (state)",
+        "CREATE INDEX `idx_coverage_areas_active` ON `coverage_areas` (active)",
+        "CREATE INDEX `idx_coverage_areas_region` ON `coverage_areas` (region)"
       ]
     }
   ]

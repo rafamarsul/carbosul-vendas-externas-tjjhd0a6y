@@ -36,6 +36,7 @@ import {
   createCoverageArea,
   updateCoverageArea,
   deleteCoverageArea,
+  bulkCreateCoverageAreas,
   STATE_OPTIONS,
   REGION_OPTIONS,
   type CoverageArea,
@@ -63,6 +64,11 @@ export default function CoverageAreas() {
   const [filterUser, setFilterUser] = useState('all')
   const [filterState, setFilterState] = useState('all')
   const [filterCity, setFilterCity] = useState('')
+  const [massUser, setMassUser] = useState('')
+  const [massEntries, setMassEntries] = useState([
+    { city: '', state: 'SC', region: 'Grande Florianópolis' },
+  ])
+  const [isMassLoading, setIsMassLoading] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -149,6 +155,39 @@ export default function CoverageAreas() {
     setFormData(emptyForm)
     setEditingId(null)
     setFieldErrors({})
+  }
+
+  const handleMassAssign = async () => {
+    if (!massUser) return
+    const validEntries = massEntries.filter((e) => e.city.trim())
+    if (validEntries.length === 0) {
+      toast.error('Adicione pelo menos uma cidade')
+      return
+    }
+    setIsMassLoading(true)
+    try {
+      await bulkCreateCoverageAreas(massUser, validEntries)
+      toast.success(`${validEntries.length} áreas atribuídas com sucesso!`)
+      setMassUser('')
+      setMassEntries([{ city: '', state: 'SC', region: 'Grande Florianópolis' }])
+      fetchData()
+    } catch {
+      toast.error('Erro ao atribuir áreas')
+    } finally {
+      setIsMassLoading(false)
+    }
+  }
+
+  const addMassEntry = () => {
+    setMassEntries((prev) => [...prev, { city: '', state: 'SC', region: 'Grande Florianópolis' }])
+  }
+
+  const removeMassEntry = (index: number) => {
+    setMassEntries((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const updateMassEntry = (index: number, field: string, value: string) => {
+    setMassEntries((prev) => prev.map((e, i) => (i === index ? { ...e, [field]: value } : e)))
   }
 
   const userName = (id: string) => {
@@ -294,6 +333,85 @@ export default function CoverageAreas() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="w-5 h-5" /> Atribuição em Massa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Vendedor</Label>
+            <Select value={massUser} onValueChange={setMassUser}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um vendedor" />
+              </SelectTrigger>
+              <SelectContent>
+                {users
+                  .filter((u) => u.role === 'sales')
+                  .map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {massEntries.map((entry, i) => (
+            <div key={i} className="flex flex-col md:flex-row gap-2">
+              <Input
+                placeholder="Cidade"
+                value={entry.city}
+                onChange={(e) => updateMassEntry(i, 'city', e.target.value)}
+                className="flex-1"
+              />
+              <Select value={entry.state} onValueChange={(v) => updateMassEntry(i, 'state', v)}>
+                <SelectTrigger className="w-full md:w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATE_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={entry.region} onValueChange={(v) => updateMassEntry(i, 'region', v)}>
+                <SelectTrigger className="w-full md:w-52">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REGION_OPTIONS.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {massEntries.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive"
+                  onClick={() => removeMassEntry(i)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={addMassEntry}>
+              <Plus className="w-4 h-4 mr-2" /> Adicionar Cidade
+            </Button>
+            <Button onClick={handleMassAssign} disabled={!massUser || isMassLoading}>
+              {isMassLoading ? 'Salvando...' : 'Salvar Todas'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

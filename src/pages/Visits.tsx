@@ -4,6 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,6 +29,7 @@ export default function Visits() {
     company: '',
     contact: '',
     interest: '',
+    state: 'SC',
     lat: 0,
     lng: 0,
   })
@@ -72,6 +80,7 @@ export default function Visits() {
         company: formData.company,
         contact: formData.contact,
         interest: formData.interest,
+        state: formData.state,
         lat: formData.lat,
         lng: formData.lng,
         // Fill remaining required fields from Visit type with empty/default values
@@ -164,6 +173,21 @@ export default function Visits() {
                   onChange={(e) => setFormData((p) => ({ ...p, interest: e.target.value }))}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <Select
+                  value={formData.state}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, state: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SC">SC</SelectItem>
+                    <SelectItem value="RS">RS</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
