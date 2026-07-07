@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { MapPin, Plus, Trash2, Calendar, AlertCircle, ClipboardList } from 'lucide-react'
+import { MapPin, Plus, Trash2, Calendar, AlertCircle, ClipboardList, BarChart3 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +27,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import { getDayLabel } from '@/lib/cycle'
 import { QuickVisitForm } from '@/components/QuickVisitForm'
+import { PerformanceSummary } from '@/components/PerformanceSummary'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -92,14 +93,12 @@ export default function Agenda() {
   useRealtime('zones', () => fetchAll())
   useRealtime('schedules', () => fetchAll())
 
-  const filteredZones = useMemo(() => {
-    if (coverageAreas.length === 0) return []
-    const states = new Set(coverageAreas.map((a) => a.state))
-    const regions = new Set(coverageAreas.map((a) => a.region))
-    return zones.filter((z) => z.state && z.region && states.has(z.state) && regions.has(z.region))
-  }, [zones, coverageAreas])
+  const salesZones = useMemo(() => {
+    if (!user?.id) return []
+    return zones.filter((z) => z.user_id === user.id)
+  }, [zones, user?.id])
 
-  const zoneOptions = isManager ? zones : filteredZones
+  const zoneOptions = isManager ? zones : salesZones
 
   const handleCreateZone = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,7 +142,7 @@ export default function Agenda() {
       const inCoverage = coverageAreas.some(
         (a) => a.state === selectedZone.state && a.region === selectedZone.region,
       )
-      if (!inCoverage) {
+      if (!inCoverage && !isManager) {
         toast.error('Esta zona não pertence à sua área de cobertura atribuída.')
         return
       }
@@ -168,8 +167,11 @@ export default function Agenda() {
         <h1 className="text-2xl font-bold tracking-tight text-primary">Agenda & Rotas</h1>
         <p className="text-muted-foreground text-sm">Gerencie zonas e escalas da equipe.</p>
       </div>
-      <Tabs defaultValue={isManager ? 'zones' : 'schedules'}>
+      <Tabs defaultValue="performance">
         <TabsList>
+          <TabsTrigger value="performance">
+            <BarChart3 className="w-4 h-4 mr-1" /> Performance
+          </TabsTrigger>
           {isManager && (
             <TabsTrigger value="zones">
               <MapPin className="w-4 h-4 mr-1" /> Zonas
@@ -182,6 +184,9 @@ export default function Agenda() {
             <ClipboardList className="w-4 h-4 mr-1" /> Visitas
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="performance" className="space-y-4">
+          <PerformanceSummary />
+        </TabsContent>
         {isManager && (
           <TabsContent value="zones" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -311,9 +316,11 @@ export default function Agenda() {
                       className="flex items-center justify-between p-3 border rounded-lg"
                     >
                       <div>
-                        <span className="font-medium">{z.name}</span>
+                        <span className="font-medium">
+                          {z.name} - {z.state || '—'}
+                        </span>
                         <span className="text-xs text-muted-foreground ml-2">
-                          {z.state || '—'} • {z.region || '—'} • CEP: {z.cep || '—'}
+                          {z.region || '—'} • CEP: {z.cep || '—'}
                         </span>
                       </div>
                       <Button
@@ -340,12 +347,21 @@ export default function Agenda() {
           </TabsContent>
         )}
         <TabsContent value="schedules" className="space-y-4">
-          {!isManager && coverageAreas.length === 0 && (
+          {!isManager && salesZones.length === 0 && (
             <Alert>
               <AlertCircle className="w-4 h-4" />
               <AlertDescription>
-                Você não possui áreas de cobertura ativas. Solicite ao seu gerente que atribua
-                territórios para você.
+                Você não possui territórios atribuídos. Solicite ao seu gerente que atribua zonas ao
+                seu usuário para que possa criar agendamentos.
+              </AlertDescription>
+            </Alert>
+          )}
+          {!isManager && salesZones.length > 0 && coverageAreas.length === 0 && (
+            <Alert>
+              <AlertCircle className="w-4 h-4" />
+              <AlertDescription>
+                Você possui zonas atribuídas, mas nenhuma área de cobertura ativa. Solicite ao seu
+                gerente que configure suas áreas de cobertura.
               </AlertDescription>
             </Alert>
           )}
@@ -421,9 +437,7 @@ export default function Agenda() {
                   <div className="space-y-1">
                     <Label>
                       Zona
-                      {isManager && schedForm.user_id
-                        ? ` (${filteredZones.length} disponíveis)`
-                        : ''}
+                      {isManager && schedForm.user_id ? ` (${zones.length} disponíveis)` : ''}
                     </Label>
                     <Select
                       value={schedForm.zone_id}
@@ -435,17 +449,23 @@ export default function Agenda() {
                       <SelectContent>
                         {zoneOptions.map((z) => (
                           <SelectItem key={z.id} value={z.id}>
-                            {z.name}
+                            {z.name} - {z.state || '—'}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {zoneOptions.length === 0 && schedForm.user_id && (
-                      <p className="text-xs text-muted-foreground">
-                        Nenhuma zona disponível para a área de cobertura deste vendedor.
-                      </p>
-                    )}
                   </div>
+                  {!isManager && zoneOptions.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhum território atribuído a você. Solicite ao seu gerente que atribua zonas
+                      ao seu usuário.
+                    </p>
+                  )}
+                  {isManager && schedForm.user_id && zoneOptions.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma zona cadastrada no sistema.
+                    </p>
+                  )}
                   <Button type="submit" className="w-full">
                     <Plus className="w-4 h-4 mr-2" /> Criar Agendamento
                   </Button>

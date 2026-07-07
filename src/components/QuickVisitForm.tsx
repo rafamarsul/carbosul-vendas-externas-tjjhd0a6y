@@ -18,6 +18,9 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { STATE_OPTIONS } from '@/services/coverage-areas'
 import { toast } from 'sonner'
 
+const LEAD_STATUS_OPTIONS = ['Qualificado', 'Não Qualificado', 'Em Análise']
+const VISIT_STATUS_OPTIONS = ['Pendente', 'Em Andamento', 'Concluída']
+
 export function QuickVisitForm() {
   const { user } = useAuth()
   const [form, setForm] = useState({
@@ -28,6 +31,8 @@ export function QuickVisitForm() {
     region: '',
     reason: '',
     state: 'SC',
+    status: 'Pendente',
+    lead_status: 'Em Análise',
     lat: 0,
     lng: 0,
   })
@@ -49,9 +54,10 @@ export function QuickVisitForm() {
         region: form.region,
         reason: form.reason,
         state: form.state,
+        status: form.status,
+        lead_status: form.lead_status,
         lat: form.lat,
         lng: form.lng,
-        status: 'pending',
       })
       toast.success('Visita registrada!')
       setForm({
@@ -62,6 +68,8 @@ export function QuickVisitForm() {
         region: '',
         reason: '',
         state: 'SC',
+        status: 'Pendente',
+        lead_status: 'Em Análise',
         lat: 0,
         lng: 0,
       })
@@ -105,6 +113,41 @@ export function QuickVisitForm() {
             </SelectTrigger>
             <SelectContent>
               {STATE_OPTIONS.map((s: string) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>Status da Visita</Label>
+          <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VISIT_STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label>Status do Lead</Label>
+          <Select
+            value={form.lead_status}
+            onValueChange={(v) => setForm((p) => ({ ...p, lead_status: v }))}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {LEAD_STATUS_OPTIONS.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s}
                 </SelectItem>

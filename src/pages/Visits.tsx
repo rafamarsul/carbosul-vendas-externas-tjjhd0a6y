@@ -16,6 +16,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useData } from '@/contexts/DataContext'
 
+const LEAD_STATUS_OPTIONS = ['Qualificado', 'Não Qualificado', 'Em Análise']
+const VISIT_STATUS_OPTIONS = ['Pendente', 'Em Andamento', 'Concluída']
+
 export default function Visits() {
   const { user } = useAuth()
   const { addVisit } = useData()
@@ -30,6 +33,8 @@ export default function Visits() {
     contact: '',
     interest: '',
     state: 'SC',
+    status: 'Pendente',
+    lead_status: 'Em Análise',
     lat: 0,
     lng: 0,
   })
@@ -83,7 +88,6 @@ export default function Visits() {
         state: formData.state,
         lat: formData.lat,
         lng: formData.lng,
-        // Fill remaining required fields from Visit type with empty/default values
         phone: '',
         address: '',
         region: '',
@@ -174,18 +178,56 @@ export default function Visits() {
                   required
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <Select
+                    value={formData.state}
+                    onValueChange={(v) => setFormData((p) => ({ ...p, state: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SC">SC</SelectItem>
+                      <SelectItem value="RS">RS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status da Visita</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(v) => setFormData((p) => ({ ...p, status: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VISIT_STATUS_OPTIONS.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label>Estado</Label>
+                <Label>Status do Lead</Label>
                 <Select
-                  value={formData.state}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, state: v }))}
+                  value={formData.lead_status}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, lead_status: v }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SC">SC</SelectItem>
-                    <SelectItem value="RS">RS</SelectItem>
+                    {LEAD_STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

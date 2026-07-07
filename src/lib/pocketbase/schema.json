@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T18:21:42.992Z",
+  "generatedAt": "2026-07-07T18:50:13.628Z",
   "collections": [
     {
       "name": "users",
@@ -232,6 +232,13 @@
           "required": false,
           "system": false,
           "selectValues": ["SC", "RS"]
+        },
+        {
+          "name": "lead_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Qualificado", "Não Qualificado", "Em Análise"]
         }
       ],
       "indexes": []

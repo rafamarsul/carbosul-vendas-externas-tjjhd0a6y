@@ -13,6 +13,7 @@ export interface VisitData {
   products?: unknown
   notes?: string
   status?: string
+  lead_status?: string
   priority?: boolean
   lat?: number
   lng?: number
