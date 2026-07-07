@@ -10,6 +10,7 @@ import Index from './pages/Index'
 import Visits from './pages/Visits'
 import TeamManagement from './pages/TeamManagement'
 import Agenda from './pages/Agenda'
+import CoverageAreas from './pages/CoverageAreas'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -29,6 +30,7 @@ const App = () => (
                 <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
                   <Route path="/equipe" element={<TeamManagement />} />
                   <Route path="/agenda" element={<Agenda />} />
+                  <Route path="/cobertura" element={<CoverageAreas />} />
                 </Route>
               </Route>
             </Route>

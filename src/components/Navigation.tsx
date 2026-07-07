@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, MapPin, LogOut } from 'lucide-react'
+import { LayoutDashboard, MapPin, LogOut, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ export function DesktopSidebar() {
     { to: '/nova-visita', label: 'Nova Visita', icon: MapPin },
     { to: '/equipe', label: 'Equipe', icon: LayoutDashboard },
     { to: '/agenda', label: 'Agenda', icon: LayoutDashboard },
+    { to: '/cobertura', label: 'Cobertura', icon: Globe },
   ]
 
   return (

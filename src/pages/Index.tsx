@@ -36,6 +36,7 @@ import { getCycleInfo } from '@/lib/cycle'
 import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts'
+import { MyTerritories } from '@/components/MyTerritories'
 
 const PRODUCTS_LIST = [
   'Carvão Ativado Granulado',
@@ -188,6 +189,8 @@ function SalesDashboard({ visits }: { visits: any[] }) {
           </CardContent>
         </Card>
       </div>
+
+      <MyTerritories />
 
       <Card className="h-[450px] flex flex-col shadow-sm">
         <CardHeader className="px-6 py-4 border-b">
