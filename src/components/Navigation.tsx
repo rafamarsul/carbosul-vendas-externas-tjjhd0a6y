@@ -5,11 +5,13 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 
 export function DesktopSidebar() {
-  const { user, logout } = useAuth()
+  const { user, signOut } = useAuth()
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/nova-visita', label: 'Nova Visita', icon: MapPin },
+    { to: '/equipe', label: 'Equipe', icon: LayoutDashboard },
+    { to: '/agenda', label: 'Agenda', icon: LayoutDashboard },
   ]
 
   return (
@@ -56,7 +58,7 @@ export function DesktopSidebar() {
         <Button
           variant="ghost"
           className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          onClick={logout}
+          onClick={signOut}
         >
           <LogOut className="mr-2 h-4 w-4" /> Sair
         </Button>

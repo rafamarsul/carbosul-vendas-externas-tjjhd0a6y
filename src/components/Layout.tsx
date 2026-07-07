@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { LayoutDashboard, Map, MapPin, LogOut } from 'lucide-react'
+import { LayoutDashboard, Map, MapPin, LogOut, Users, Calendar } from 'lucide-react'
 
 export default function Layout() {
   const { user, signOut } = useAuth()
@@ -10,6 +10,8 @@ export default function Layout() {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'sales'] },
     { path: '/nova-visita', label: 'Nova Visita', icon: MapPin, roles: ['sales', 'manager'] },
+    { path: '/equipe', label: 'Equipe', icon: Users, roles: ['manager'] },
+    { path: '/agenda', label: 'Agenda', icon: Calendar, roles: ['manager'] },
   ]
 
   const allowedNav = navItems.filter((item) => item.roles.includes(user?.role || 'sales'))

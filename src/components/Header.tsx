@@ -18,7 +18,7 @@ import {
 export function Header() {
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [syncing, setSyncing] = useState(false)
-  const { user, logout } = useAuth()
+  const { user, signOut } = useAuth()
   const { syncVisits } = useData()
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export function Header() {
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={logout}
+              onClick={signOut}
               className="text-destructive focus:text-destructive cursor-pointer"
             >
               <LogOut className="mr-2 h-4 w-4" /> Sair do Sistema

@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 
 interface GoogleMapProps {
   className?: string
-  markers?: Array<{ id: string; lat: number; lng: number; color?: string; label?: string }>
+  markers?: Array<{
+    id: string
+    lat: number
+    lng: number
+    color?: string
+    label?: string
+    salesmanName?: string
+  }>
   zones?: Array<{ id: string; lat: number; lng: number; radius: number; name?: string }>
   route?: Array<{ lat: number; lng: number }>
   showPolygon?: boolean
@@ -22,6 +29,7 @@ export function GoogleMap({ className, markers = [], zones = [], route, onClick 
   const markersRef = useRef<any[]>([])
   const zonesRef = useRef<any[]>([])
   const routeRef = useRef<any>(null)
+  const infoWindowRef = useRef<any>(null)
   const clickHandlerRef = useRef(onClick)
 
   useEffect(() => {
@@ -85,6 +93,9 @@ export function GoogleMap({ className, markers = [], zones = [], route, onClick 
     const map = mapInstanceRef.current
 
     // Clear existing markers and zones
+    if (infoWindowRef.current) {
+      infoWindowRef.current.close()
+    }
     markersRef.current.forEach((m) => m.setMap(null))
     markersRef.current = []
 
@@ -130,6 +141,14 @@ export function GoogleMap({ className, markers = [], zones = [], route, onClick 
           strokeWeight: 2,
           scale: 8,
         },
+      })
+      m.addListener('click', () => {
+        if (!infoWindowRef.current) {
+          infoWindowRef.current = new window.google.maps.InfoWindow()
+        }
+        const content = `<div style="padding:4px"><strong>${marker.label || ''}</strong>${marker.salesmanName ? `<br/><span style="font-size:12px;color:#666">${marker.salesmanName}</span>` : ''}</div>`
+        infoWindowRef.current.setContent(content)
+        infoWindowRef.current.open(map, m)
       })
       markersRef.current.push(m)
       bounds.extend({ lat: marker.lat, lng: marker.lng })

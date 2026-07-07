@@ -30,7 +30,8 @@ import { toast } from 'sonner'
 import { useData } from '@/contexts/DataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Badge } from '@/components/ui/badge'
-import { getMySchedules } from '@/services/schedules'
+import { getMySchedules, getSchedules } from '@/services/schedules'
+import { getUsers } from '@/services/users'
 import { getCycleInfo } from '@/lib/cycle'
 import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
@@ -276,6 +277,7 @@ function ManagerMapSection({ visits, zones }: { visits: any[]; zones: any[] }) {
     lng: v.lng || -46.63 + i * 0.01,
     color: v.priority ? '#EF4444' : '#004A99',
     label: v.company,
+    salesmanName: v.salesmanName,
   }))
 
   return (
@@ -348,10 +350,27 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
   const [regionFilter, setRegionFilter] = useState('all')
   const [productFilter, setProductFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>()
+  const [salesmanFilter, setSalesmanFilter] = useState('all')
+  const [teamUsers, setTeamUsers] = useState<any[]>([])
+  const [allSchedules, setAllSchedules] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchTeamData = async () => {
+      try {
+        const [usersData, schedulesData] = await Promise.all([getUsers(), getSchedules()])
+        setTeamUsers(usersData)
+        setAllSchedules(schedulesData)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    fetchTeamData()
+  }, [])
 
   const filteredVisits = useMemo(() => {
     return visits.filter((v) => {
       let keep = true
+      if (salesmanFilter !== 'all' && v.salesmanId !== salesmanFilter) keep = false
       if (regionFilter !== 'all' && v.region !== regionFilter) keep = false
       if (productFilter !== 'all' && !(v.products && v.products[productFilter])) keep = false
       if (dateFilter?.from) {
@@ -384,11 +403,12 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
   const visitsForMap = useMemo(() => {
     return visits.filter((v) => {
       let keep = true
+      if (salesmanFilter !== 'all' && v.salesmanId !== salesmanFilter) keep = false
       if (regionFilter !== 'all' && v.region !== regionFilter) keep = false
       if (productFilter !== 'all' && !(v.products && v.products[productFilter])) keep = false
       return keep
     })
-  }, [visits, regionFilter, productFilter])
+  }, [visits, salesmanFilter, regionFilter, productFilter])
 
   const approvalData = useMemo(() => {
     const counts = { approved: 0, pending: 0, needs_review: 0 }
@@ -446,6 +466,23 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
       <Card className="bg-muted/30 border-primary/10 shadow-sm">
         <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-end md:items-center">
           <div className="w-full md:w-48">
+            <Select value={salesmanFilter} onValueChange={setSalesmanFilter}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Vendedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Vendedores</SelectItem>
+                {teamUsers
+                  .filter((u) => u.role === 'sales')
+                  .map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name || u.email}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full md:w-48">
             <Select value={regionFilter} onValueChange={setRegionFilter}>
               <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Região" />
@@ -480,6 +517,7 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
           <Button
             variant="ghost"
             onClick={() => {
+              setSalesmanFilter('all')
               setRegionFilter('all')
               setProductFilter('all')
               setDateFilter(undefined)
@@ -549,6 +587,47 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
               Os dados de visitas e performance aparecerão aqui assim que a equipe começar a
               registrar as atividades em campo.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {allSchedules.length > 0 && (
+        <Card className="shadow-sm">
+          <CardHeader className="border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" /> Rotas Planejadas vs. Executadas (Hoje)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {allSchedules.map((s) => {
+                const salesUser = teamUsers.find((u) => u.id === s.user_id)
+                const zoneName = s.expand?.zone_id?.name || '—'
+                const todayCount = visits.filter(
+                  (v) =>
+                    v.salesmanId === s.user_id &&
+                    new Date(v.timestamp || v.created).toDateString() === new Date().toDateString(),
+                ).length
+                return (
+                  <div key={s.id} className="p-4 flex items-center justify-between">
+                    <div>
+                      <span className="font-medium">{salesUser?.name || '—'}</span>
+                      <span className="text-sm text-muted-foreground ml-2">
+                        Semana {s.week_number} • {s.day_of_week}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="text-xs">
+                        Zona: {zoneName}
+                      </Badge>
+                      <Badge variant={todayCount > 0 ? 'default' : 'secondary'} className="text-xs">
+                        {todayCount} visitas hoje
+                      </Badge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
       )}

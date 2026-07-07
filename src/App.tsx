@@ -8,6 +8,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Index from './pages/Index'
 import Visits from './pages/Visits'
+import TeamManagement from './pages/TeamManagement'
+import Agenda from './pages/Agenda'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -24,6 +26,10 @@ const App = () => (
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
                 <Route path="/nova-visita" element={<Visits />} />
+                <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
+                  <Route path="/equipe" element={<TeamManagement />} />
+                  <Route path="/agenda" element={<Agenda />} />
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
