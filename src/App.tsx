@@ -11,6 +11,7 @@ import Visits from './pages/Visits'
 import TeamManagement from './pages/TeamManagement'
 import Agenda from './pages/Agenda'
 import CoverageAreas from './pages/CoverageAreas'
+import VisitMap from './pages/VisitMap'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -26,12 +27,13 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
-                <Route path="/nova-visita" element={<Visits />} />
+                <Route path="/visits" element={<Visits />} />
                 <Route element={<ProtectedRoute allowedRoles={['manager']} />}>
-                  <Route path="/equipe" element={<TeamManagement />} />
-                  <Route path="/cobertura" element={<CoverageAreas />} />
+                  <Route path="/team" element={<TeamManagement />} />
+                  <Route path="/coverage-areas" element={<CoverageAreas />} />
                 </Route>
                 <Route path="/agenda" element={<Agenda />} />
+                <Route path="/visits-map" element={<VisitMap />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

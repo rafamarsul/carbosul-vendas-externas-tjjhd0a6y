@@ -120,7 +120,7 @@ function SalesDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
             Resumo da sua performance individual e metas.
           </p>
         </div>
-        <Button onClick={() => (window.location.href = '/visitas')} className="shadow-md">
+        <Button onClick={() => (window.location.href = '/visits')} className="shadow-md">
           <MapPin className="mr-2 h-4 w-4" /> Iniciar Visita
         </Button>
       </div>

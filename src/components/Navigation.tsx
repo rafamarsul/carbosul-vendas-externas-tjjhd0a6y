@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, MapPin, LogOut, Globe } from 'lucide-react'
+import { LayoutDashboard, MapPin, Map, LogOut, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -9,10 +9,11 @@ export function DesktopSidebar() {
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/nova-visita', label: 'Nova Visita', icon: MapPin },
-    { to: '/equipe', label: 'Equipe', icon: LayoutDashboard },
+    { to: '/visits', label: 'Nova Visita', icon: MapPin },
+    { to: '/visits-map', label: 'Mapa', icon: Map },
+    { to: '/team', label: 'Equipe', icon: LayoutDashboard },
     { to: '/agenda', label: 'Agenda', icon: LayoutDashboard },
-    { to: '/cobertura', label: 'Cobertura', icon: Globe },
+    { to: '/coverage-areas', label: 'Cobertura', icon: Globe },
   ]
 
   return (
@@ -73,7 +74,8 @@ export function MobileBottomNav() {
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/nova-visita', label: 'Nova Visita', icon: MapPin },
+    { to: '/visits', label: 'Nova Visita', icon: MapPin },
+    { to: '/visits-map', label: 'Mapa', icon: Map },
   ]
 
   return (

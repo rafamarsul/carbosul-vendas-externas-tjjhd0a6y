@@ -35,3 +35,17 @@ export const updateVisit = (id: string, data: Partial<VisitData>) =>
   pb.collection('visits').update(id, data)
 
 export const deleteVisit = (id: string) => pb.collection('visits').delete(id)
+
+export const getVisitsByDateAndUser = (dateStr: string, userId?: string) => {
+  const start = `${dateStr} 00:00:00`
+  const end = `${dateStr} 23:59:59`
+  let filter = `created >= "${start}" && created <= "${end}"`
+  if (userId && userId !== 'all') {
+    filter += ` && user_id = "${userId}"`
+  }
+  return pb.collection('visits').getFullList({
+    sort: 'created',
+    filter,
+    expand: 'user_id',
+  })
+}
