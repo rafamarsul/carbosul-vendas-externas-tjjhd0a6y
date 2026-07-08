@@ -24,6 +24,7 @@ export const STATE_OPTIONS = ['SC', 'RS'] as const
 export const REGION_OPTIONS = [
   'Grande Florianópolis',
   'Vale do Itajaí',
+  'Vale do Tijucas',
   'Litoral Norte',
   'Sul',
   'Missões',
