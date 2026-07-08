@@ -37,6 +37,7 @@ import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts'
 import { MyTerritories } from '@/components/MyTerritories'
+import { WeeklySchedule } from '@/components/WeeklySchedule'
 import { STATE_OPTIONS, REGION_OPTIONS } from '@/services/coverage-areas'
 
 const PRODUCTS_LIST = [
@@ -237,6 +238,8 @@ function SalesDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
         </CardContent>
       </Card>
 
+      <WeeklySchedule userId={user?.id || ''} />
+
       <MyTerritories />
 
       <Card className="h-[450px] flex flex-col shadow-sm">
@@ -419,6 +422,7 @@ function ManagerMapSection({ visits, zones }: { visits: any[]; zones: any[] }) {
 }
 
 function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
+  const { user } = useAuth()
   const [stateFilter, setStateFilter] = useState('all')
   const [regionFilter, setRegionFilter] = useState('all')
   const [productFilter, setProductFilter] = useState('all')
@@ -805,6 +809,8 @@ function ManagerDashboard({ visits, zones }: { visits: any[]; zones: any[] }) {
           </CardContent>
         </Card>
       )}
+
+      <WeeklySchedule userId={user?.id || ''} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-sm">

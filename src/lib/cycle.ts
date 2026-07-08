@@ -1,3 +1,9 @@
+export function getWeekOfMonth(date: Date = new Date()): number {
+  const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
+  const dayOfMonth = date.getDate()
+  return Math.ceil((dayOfMonth + startOfMonth.getDay()) / 7)
+}
+
 export function getCycleInfo(date: Date = new Date()) {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const dayStr = days[date.getDay()]
