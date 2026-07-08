@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T13:20:35.623Z",
+  "generatedAt": "2026-07-08T13:34:11.243Z",
   "collections": [
     {
       "name": "users",
@@ -29,21 +29,29 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "role",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["manager", "sales"]
+          "selectValues": [
+            "manager",
+            "sales"
+          ]
         }
       ],
       "indexes": [
@@ -86,14 +94,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -217,28 +230,40 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "state",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["SC", "RS"]
+          "selectValues": [
+            "SC",
+            "RS"
+          ]
         },
         {
           "name": "lead_status",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Qualificado", "Não Qualificado", "Em Análise"]
+          "selectValues": [
+            "Qualificado",
+            "Não Qualificado",
+            "Em Análise"
+          ]
         }
       ],
       "indexes": []
@@ -283,14 +308,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "user_id",
@@ -310,7 +340,10 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["SC", "RS"]
+          "selectValues": [
+            "SC",
+            "RS"
+          ]
         },
         {
           "name": "region",
@@ -389,14 +422,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -430,7 +468,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["SC", "RS"]
+          "selectValues": [
+            "SC",
+            "RS"
+          ]
         },
         {
           "name": "active",
@@ -443,14 +484,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "region",
